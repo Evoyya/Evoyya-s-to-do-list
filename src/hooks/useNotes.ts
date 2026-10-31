@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider'
 import {
+  byItemPosition,
+  insertChecklistItems,
+  makeItem,
+  type ChecklistItem,
+} from '../lib/checklist'
+import {
   byPosition,
   deleteNote,
   fetchNotes,
@@ -10,6 +16,8 @@ import {
   type NoteKind,
   type NotePatch,
 } from '../lib/notes'
+import { useOptimisticList } from './optimistic'
+import { ITEMS_KEY } from './useChecklist'
 
 const NOTES_KEY = ['notes'] as const
 
@@ -17,65 +25,76 @@ export function useNotes() {
   return useQuery({ queryKey: NOTES_KEY, queryFn: fetchNotes })
 }
 
-// Изменение сразу видно на экране; при ошибке сервера список откатывается
-function useOptimisticNotes<TVars>(
-  mutationFn: (vars: TVars) => Promise<void>,
-  apply: (notes: Note[], vars: TVars) => Note[],
-) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn,
-    onMutate: async (vars) => {
-      await queryClient.cancelQueries({ queryKey: NOTES_KEY })
-      const previous = queryClient.getQueryData<Note[]>(NOTES_KEY)
-      queryClient.setQueryData<Note[]>(NOTES_KEY, (old = []) => apply(old, vars))
-      return { previous }
-    },
-    onError: (_error, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(NOTES_KEY, context.previous)
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: NOTES_KEY }),
-  })
+export type NewNote = {
+  title: string
+  description: string | null
+  kind: NoteKind
+  items: string[]
 }
 
-export type NewNote = { title: string; description: string | null; kind: NoteKind }
-
+// Заметка и её пункты создаются вместе: сначала заметка, потом пункты (им нужна заметка)
 export function useCreateNote() {
   const { session } = useAuth()
   const queryClient = useQueryClient()
-  const mutation = useOptimisticNotes(insertNote, (notes, note) =>
-    [...notes, note].sort(byPosition),
-  )
+  const mutation = useMutation({
+    mutationFn: async ({ note, items }: { note: Note; items: ChecklistItem[] }) => {
+      await insertNote(note)
+      await insertChecklistItems(items)
+    },
+    onMutate: async ({ note, items }) => {
+      await queryClient.cancelQueries({ queryKey: NOTES_KEY })
+      await queryClient.cancelQueries({ queryKey: ITEMS_KEY })
+      const previousNotes = queryClient.getQueryData<Note[]>(NOTES_KEY)
+      const previousItems = queryClient.getQueryData<ChecklistItem[]>(ITEMS_KEY)
+      queryClient.setQueryData<Note[]>(NOTES_KEY, (old = []) => [...old, note].sort(byPosition))
+      queryClient.setQueryData<ChecklistItem[]>(ITEMS_KEY, (old = []) =>
+        [...old, ...items].sort(byItemPosition),
+      )
+      return { previousNotes, previousItems }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previousNotes) queryClient.setQueryData(NOTES_KEY, context.previousNotes)
+      if (context?.previousItems) queryClient.setQueryData(ITEMS_KEY, context.previousItems)
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: NOTES_KEY })
+      void queryClient.invalidateQueries({ queryKey: ITEMS_KEY })
+    },
+  })
 
   return (input: NewNote) => {
     const notes = queryClient.getQueryData<Note[]>(NOTES_KEY) ?? []
     const now = new Date().toISOString()
-    // Новая заметка встаёт первой
-    const position = Math.min(0, ...notes.map((n) => n.position)) - 1
-    mutation.mutate({
+    const note: Note = {
       id: crypto.randomUUID(),
       owner_id: session!.user.id,
       title: input.title,
       description: input.description,
       kind: input.kind,
       urgency: 'no_deadline',
-      position,
+      // Новая заметка встаёт первой
+      position: Math.min(0, ...notes.map((n) => n.position)) - 1,
       primary_label_id: null,
       archived_at: null,
       created_at: now,
       updated_at: now,
-    })
+    }
+    const items = input.items.map((text, i) => makeItem(note.id, text, i))
+    mutation.mutate({ note, items })
   }
 }
 
 export function useUpdateNote() {
-  return useOptimisticNotes(
-    ({ id, patch }: { id: string; patch: NotePatch }) => updateNote(id, patch),
+  return useOptimisticList<Note, { id: string; patch: NotePatch }>(
+    NOTES_KEY,
+    ({ id, patch }) => updateNote(id, patch),
     (notes, { id, patch }) =>
       notes.map((n) => (n.id === id ? { ...n, ...patch } : n)).sort(byPosition),
   )
 }
 
 export function useDeleteNote() {
-  return useOptimisticNotes(deleteNote, (notes, id) => notes.filter((n) => n.id !== id))
+  return useOptimisticList<Note, string>(NOTES_KEY, deleteNote, (notes, id) =>
+    notes.filter((n) => n.id !== id),
+  )
 }

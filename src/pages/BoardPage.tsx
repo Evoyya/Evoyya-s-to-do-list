@@ -2,11 +2,14 @@ import { useState, type ReactNode } from 'react'
 import { NoteCard } from '../components/NoteCard'
 import { NoteComposer } from '../components/NoteComposer'
 import { NoteEditor } from '../components/NoteEditor'
+import { useItemsByNote } from '../hooks/useChecklist'
 import { useNotes } from '../hooks/useNotes'
+import type { ChecklistItem } from '../lib/checklist'
 import type { Note } from '../lib/notes'
 
 export function BoardPage() {
   const { data: notes = [], isPending, error } = useNotes()
+  const itemsByNote = useItemsByNote()
   const [openedId, setOpenedId] = useState<string | null>(null)
   const opened = notes.find((n) => n.id === openedId)
 
@@ -26,12 +29,22 @@ export function BoardPage() {
 
       {!isPending && !error && (
         <>
-          <Section title="Закреплённые" empty="Постоянных заметок пока нет">
-            <NoteGrid notes={pinned} onOpen={setOpenedId} />
+          <Section title="Закреплённые">
+            <NoteGrid
+              notes={pinned}
+              itemsByNote={itemsByNote}
+              onOpen={setOpenedId}
+              empty="Постоянных заметок пока нет"
+            />
           </Section>
           {/* Столбцы срочности появятся на этапе 5 */}
-          <Section title="Задачи" empty="Временных задач пока нет">
-            <NoteGrid notes={temporary} onOpen={setOpenedId} />
+          <Section title="Задачи">
+            <NoteGrid
+              notes={temporary}
+              itemsByNote={itemsByNote}
+              onOpen={setOpenedId}
+              empty="Временных задач пока нет"
+            />
           </Section>
         </>
       )}
@@ -41,32 +54,40 @@ export function BoardPage() {
   )
 }
 
-function Section({
-  title,
-  empty,
-  children,
-}: {
-  title: string
-  empty: string
-  children: ReactNode
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="group">
+    <section aria-label={title}>
       <h2 className="mb-3 text-xs font-medium tracking-wider text-text-muted uppercase">{title}</h2>
       {children}
-      <p className="hidden text-sm text-text-muted group-has-[ul:empty]:block">{empty}</p>
     </section>
   )
 }
 
-function NoteGrid({ notes, onOpen }: { notes: Note[]; onOpen: (id: string) => void }) {
+function NoteGrid({
+  notes,
+  itemsByNote,
+  onOpen,
+  empty,
+}: {
+  notes: Note[]
+  itemsByNote: Map<string, ChecklistItem[]>
+  onOpen: (id: string) => void
+  empty: string
+}) {
+  if (notes.length === 0) return <p className="text-sm text-text-muted">{empty}</p>
   return (
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] items-start gap-3">
       {notes.map((note) => (
         <li key={note.id}>
-          <NoteCard note={note} onOpen={() => onOpen(note.id)} />
+          <NoteCard
+            note={note}
+            items={itemsByNote.get(note.id) ?? NO_ITEMS}
+            onOpen={() => onOpen(note.id)}
+          />
         </li>
       ))}
     </ul>
   )
 }
+
+const NO_ITEMS: ChecklistItem[] = []

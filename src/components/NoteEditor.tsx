@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { useDeleteNote, useUpdateNote } from '../hooks/useNotes'
 import type { Note, NoteKind, NotePatch } from '../lib/notes'
+import { ChecklistEditor } from './ChecklistEditor'
 import { KindToggle } from './KindToggle'
 
 // Окно редактирования. Как в Keep: закрытие (Esc, клик мимо, «Готово») сохраняет изменения.
@@ -56,7 +57,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
       onClick={(e) => {
         if (e.target === dialogRef.current) save()
       }}
-      className="m-auto w-[min(36rem,calc(100%-2rem))] rounded-xl border border-border bg-surface-raised p-0 text-text shadow-2xl backdrop:bg-black/60"
+      className="m-auto max-h-[90dvh] w-[min(36rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-0 text-text shadow-2xl backdrop:bg-black/60"
     >
       <div className="flex flex-col gap-2 p-4">
         <input
@@ -77,8 +78,9 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
           placeholder="Описание (необязательно)"
           aria-label="Описание"
           rows={3}
-          className="field-sizing-content max-h-[60dvh] min-h-16 resize-none bg-transparent px-1 py-1 text-base outline-none placeholder:text-text-muted"
+          className="field-sizing-content max-h-[40dvh] min-h-10 resize-none bg-transparent px-1 py-1 text-base outline-none placeholder:text-text-muted"
         />
+        <ChecklistEditor noteId={note.id} />
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <KindToggle value={kind} onChange={setKind} />
           <div className="flex gap-1">
