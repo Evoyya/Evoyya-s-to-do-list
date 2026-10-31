@@ -2,6 +2,7 @@
 
 /* Тёмная тема в стиле Google Keep */
 @theme {
+  --color-page: #141416;
   --color-surface: #202124;
   --color-surface-raised: #2d2e30;
   --color-border: #5f6368;
@@ -18,10 +19,25 @@
   }
 
   body {
-    background-color: var(--color-surface);
+    /* Фон чуть темнее карточек — они так лучше выделяются */
+    background-color: var(--color-page);
     color: var(--color-text);
     font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
     color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Фиолетовое свечение сверху, как на тёмных слайдах. Отдельный слой с position: fixed,
+     а не background-attachment: fixed — его iPhone не поддерживает. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 38% 30% at 22% 0%, rgb(160 110 190 / 0.28), transparent 70%),
+      radial-gradient(ellipse 55% 45% at 42% -8%, rgb(110 64 200 / 0.42), transparent 72%),
+      radial-gradient(ellipse 70% 60% at 50% -15%, rgb(70 40 140 / 0.25), transparent 75%);
   }
 }

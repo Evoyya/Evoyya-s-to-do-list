@@ -22,7 +22,7 @@ export function Layout() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-surface/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-4 sm:px-4">
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-page/60 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-4 sm:px-4">
         {/* На телефоне название скрыто, чтобы шапка помещалась в ширину экрана */}
         <span className="hidden py-3 text-lg font-medium sm:inline">Task-менеджер</span>
 
