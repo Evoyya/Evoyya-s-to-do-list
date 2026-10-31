@@ -6,20 +6,35 @@ export type Label = Tables<'labels'>
 export type LabelPatch = TablesUpdate<'labels'>
 export type NoteLabel = Tables<'note_labels'>
 
-// ТР-6: готовые цвета — тёмная палитра Keep, на ней светлый текст читается
-export const PALETTE = [
-  '#77172e',
-  '#692b17',
-  '#7c4a03',
-  '#264d3b',
-  '#0c625d',
-  '#256377',
-  '#284255',
-  '#472e5b',
-  '#6c394f',
-  '#4b443a',
-  '#5c5f66',
+// ТР-6: готовые цвета — 24 цвета Google Календаря (как в его тёмной теме), в том же порядке
+export const PALETTE_COLORS = [
+  { color: '#c05476', name: 'Радиккио' },
+  { color: '#d85675', name: 'Цветущая вишня' },
+  { color: '#d6837a', name: 'Фламинго' },
+  { color: '#da5234', name: 'Томат' },
+  { color: '#e3683e', name: 'Мандарин' },
+  { color: '#dd7835', name: 'Тыква' },
+  { color: '#e0963c', name: 'Манго' },
+  { color: '#e7ba51', name: 'Банан' },
+  { color: '#d8be5e', name: 'Цитрон' },
+  { color: '#bcc256', name: 'Авокадо' },
+  { color: '#85ad59', name: 'Фисташка' },
+  { color: '#489160', name: 'Базилик' },
+  { color: '#55b080', name: 'Шалфей' },
+  { color: '#429a8e', name: 'Эвкалипт' },
+  { color: '#4b99d2', name: 'Павлин' },
+  { color: '#668be1', name: 'Кобальт' },
+  { color: '#828bc2', name: 'Лаванда' },
+  { color: '#6e72c3', name: 'Черника' },
+  { color: '#ae9cce', name: 'Глициния' },
+  { color: '#a479b1', name: 'Аметист' },
+  { color: '#a75aba', name: 'Виноград' },
+  { color: '#957367', name: 'Какао' },
+  { color: '#7c7c7c', name: 'Графит' },
+  { color: '#a5998c', name: 'Берёза' },
 ]
+
+export const PALETTE = PALETTE_COLORS.map((p) => p.color)
 
 // Свои ярлыки и ярлыки создателей общих заметок (RLS), по алфавиту
 export async function fetchLabels(): Promise<Label[]> {

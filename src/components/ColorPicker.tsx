@@ -1,6 +1,6 @@
 import { HexColorInput, HexColorPicker } from 'react-colorful'
 import { normalizeHex, readableText } from '../lib/color'
-import { PALETTE, type Label } from '../lib/labels'
+import { PALETTE, PALETTE_COLORS, type Label } from '../lib/labels'
 
 // ТР-6: цвет ярлыка — из палитры или любой свой. Цвета чужих ярлыков недоступны.
 export function ColorPicker({
@@ -18,7 +18,7 @@ export function ColorPicker({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-surface p-3">
       <div role="radiogroup" aria-label="Палитра" className="flex flex-wrap gap-2">
-        {PALETTE.map((color) => {
+        {PALETTE_COLORS.map(({ color, name }) => {
           const owner = takenBy.get(color)
           const selected = color === value
           return (
@@ -27,8 +27,8 @@ export function ColorPicker({
               type="button"
               role="radio"
               aria-checked={selected}
-              aria-label={owner ? `${color}, занят ярлыком «${owner}»` : color}
-              title={owner ? `Занят ярлыком «${owner}»` : undefined}
+              aria-label={owner ? `${name}, занят ярлыком «${owner}»` : name}
+              title={owner ? `${name} — занят ярлыком «${owner}»` : name}
               disabled={!!owner}
               onClick={() => onChange(color)}
               style={{ backgroundColor: color, color: readableText(color).text }}
