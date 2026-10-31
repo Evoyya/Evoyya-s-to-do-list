@@ -11,6 +11,7 @@ import { ArchivePage } from './pages/ArchivePage'
 import { BoardPage } from './pages/BoardPage'
 import { LoginPage } from './pages/LoginPage'
 import { LabelsPage } from './pages/LabelsPage'
+import { StatsPage } from './pages/StatsPage'
 
 const queryClient = new QueryClient()
 
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
           { index: true, element: <BoardPage /> },
           { path: 'archive', element: <ArchivePage /> },
           { path: 'labels', element: <LabelsPage /> },
+          { path: 'stats', element: <StatsPage /> },
         ],
       },
     ],

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { ExportPanel } from '../components/ExportPanel'
 import { TrashIcon, UnarchiveIcon } from '../components/icons'
 import { NoteCard } from '../components/NoteCard'
 import { useItemsByNote } from '../hooks/useChecklist'
@@ -22,6 +23,7 @@ export function ArchivePage() {
 
   // Удаление навсегда — единственное необратимое действие с заметкой, поэтому с подтверждением
   const [deleting, setDeleting] = useState<Note | null>(null)
+  const [exporting, setExporting] = useState(false)
   // ТР-9: владелец удаляет общую заметку у всех, участник — только у себя
   const { session } = useAuth()
   const membersByNote = useMembersByNote()
@@ -52,16 +54,27 @@ export function ArchivePage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xs font-medium tracking-wider text-text-muted uppercase">Архив</h1>
         {notes.length > 0 && (
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск в архиве"
-            aria-label="Поиск в архиве"
-            className="w-full rounded-lg border border-border/60 bg-surface-raised px-3 py-2 text-base outline-none placeholder:text-text-muted focus:border-border sm:w-72"
-          />
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setExporting(!exporting)}
+              aria-expanded={exporting}
+              className="shrink-0 rounded-lg border border-border/60 px-3 py-2 text-sm text-text-muted hover:border-border hover:text-text"
+            >
+              Выгрузить
+            </button>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Поиск в архиве"
+              aria-label="Поиск в архиве"
+              className="w-full min-w-0 rounded-lg border border-border/60 bg-surface-raised px-3 py-2 text-base outline-none placeholder:text-text-muted focus:border-border sm:w-72"
+            />
+          </div>
         )}
       </div>
+      {exporting && <ExportPanel archived={notes} onClose={() => setExporting(false)} />}
 
       {error && <p className="text-red-400">Не удалось загрузить архив: {error.message}</p>}
       {isPending && <p className="text-text-muted">Загрузка…</p>}

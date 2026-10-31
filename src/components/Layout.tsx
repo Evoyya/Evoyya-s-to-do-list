@@ -2,12 +2,14 @@ import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
 import { useRealtimeSync } from '../hooks/useRealtimeSync'
 import { Avatar } from './Avatar'
+import { LogoutIcon } from './icons'
 import { MutationErrorBanner } from './MutationErrorBanner'
 
 const navItems = [
   { to: '/', label: 'Доска', end: true },
   { to: '/archive', label: 'Архив', end: false },
   { to: '/labels', label: 'Ярлыки', end: false },
+  { to: '/stats', label: 'Статистика', end: false },
 ]
 
 export function Layout() {
@@ -30,7 +32,7 @@ export function Layout() {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `rounded-full px-2.5 py-1.5 text-sm transition-colors sm:px-3 ${
+                `rounded-full px-2 py-1.5 text-sm transition-colors sm:px-3 ${
                   isActive
                     ? 'bg-accent/20 text-accent'
                     : 'text-text-muted hover:bg-surface-raised hover:text-text'
@@ -47,9 +49,15 @@ export function Layout() {
           <button
             type="button"
             onClick={() => void signOut()}
-            className="rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-surface-raised hover:text-text"
+            title="Выйти"
+            aria-label="Выйти"
+            className="flex items-center rounded-full p-2 text-sm text-text-muted hover:bg-surface-raised hover:text-text sm:px-3 sm:py-1.5"
           >
-            Выйти
+            {/* На телефоне только значок, чтобы шапка поместилась */}
+            <span className="sm:hidden">
+              <LogoutIcon />
+            </span>
+            <span className="hidden sm:inline">Выйти</span>
           </button>
         </div>
       </header>
