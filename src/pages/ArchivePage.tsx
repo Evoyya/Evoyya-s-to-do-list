@@ -31,10 +31,12 @@ export function ArchivePage() {
         <p className="text-sm text-text-muted">В архиве пусто</p>
       )}
 
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] items-start gap-3">
+      {/* Колонки, а не сетка: карточки разной высоты идут друг под другом без пустот, как в Keep */}
+      <ul className="columns-2 gap-2 sm:columns-[13rem] sm:gap-3">
         {notes.map((note) => (
-          <li key={note.id}>
+          <li key={note.id} className="mb-2 break-inside-avoid sm:mb-3">
             <NoteCard
+              compact
               note={note}
               items={itemsByNote.get(note.id) ?? NO_ITEMS}
               actions={
@@ -73,7 +75,7 @@ function IconButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="rounded-full p-2 text-text-muted hover:bg-surface-raised hover:text-text"
+      className="rounded-full p-1.5 text-text-muted hover:bg-surface-raised hover:text-text"
     >
       {children}
     </button>

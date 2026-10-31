@@ -11,12 +11,15 @@ export function NoteCard({
   items,
   onOpen,
   actions,
+  compact = false,
 }: {
   note: Note
   items: ChecklistItem[]
   // Без onOpen карточка не открывается (например, в архиве)
   onOpen?: () => void
   actions?: ReactNode
+  // Плотная карточка, как в архиве Keep
+  compact?: boolean
 }) {
   const updateItem = useUpdateItem()
   const active = items.filter((i) => !i.is_done)
@@ -34,9 +37,9 @@ export function NoteCard({
           onOpen()
         }
       }}
-      className={`flex w-full flex-col gap-2 rounded-lg border border-border/60 bg-surface p-4 text-left transition-colors hover:border-border ${
-        onOpen ? 'cursor-pointer' : ''
-      }`}
+      className={`group flex w-full flex-col rounded-lg border border-border/60 bg-surface text-left transition-colors hover:border-border ${
+        compact ? 'gap-1.5 px-3 pt-2.5 pb-2' : 'gap-2 p-4'
+      } ${onOpen ? 'cursor-pointer' : ''}`}
     >
       <h3 className="font-medium break-words">{note.title}</h3>
       {/* ТР-3: пустое описание не занимает места */}
@@ -62,7 +65,16 @@ export function NoteCard({
         </ul>
       )}
       {doneCount > 0 && <p className="text-sm text-text-muted">{doneLabel(doneCount)}</p>}
-      {actions && <div className="-mx-2 -mb-2 flex justify-end gap-1 pt-1">{actions}</div>}
+      {actions && (
+        // С мышью кнопки появляются при наведении, как в Keep; на телефоне видны всегда
+        <div
+          className={`flex justify-end gap-1 transition-opacity pointer-fine:opacity-0 pointer-fine:group-focus-within:opacity-100 pointer-fine:group-hover:opacity-100 ${
+            compact ? '-mx-1.5 -mb-1' : '-mx-2 -mb-2 pt-1'
+          }`}
+        >
+          {actions}
+        </div>
+      )}
     </div>
   )
 }
