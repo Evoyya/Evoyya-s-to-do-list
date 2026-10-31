@@ -31,7 +31,7 @@
 **Стек:** Node.js LTS, npm, Git, VS Code, Supabase CLI, Docker Desktop (необязательно), GitHub, Supabase, Vercel, Google Cloud Console.
 
 **Подзадачи:**
-1. Установить Node.js LTS, Git, VS Code с расширениями ESLint, Prettier, Tailwind CSS IntelliSense.
+1. Установить Node.js LTS, Git, VS Code с расширениями oxc, Prettier, Tailwind CSS IntelliSense.
 2. Установить Supabase CLI. При желании разрабатывать с локальной базой — установить Docker Desktop.
 3. Зарегистрироваться в GitHub, Supabase и Vercel (последние два — через GitHub).
 4. Создать репозиторий на GitHub, склонировать его, положить туда `REQUIREMENTS.md`, `STACK.md`, `ROADMAP.md`.
@@ -72,12 +72,12 @@
 
 **Требования:** ТР-7 (доступ с разных устройств).
 
-**Стек:** React, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, `@supabase/supabase-js`, Supabase Auth, Google OAuth, Vercel, ESLint, Prettier.
+**Стек:** React, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, `@supabase/supabase-js`, Supabase Auth, Google OAuth, Vercel, oxlint, Prettier.
 
 **Подзадачи:**
 1. Создать проект: `npm create vite@latest` (шаблон React + TypeScript).
 2. Подключить Tailwind CSS, задать тёмную тему и палитру.
-3. Настроить ESLint и Prettier.
+3. Настроить oxlint и Prettier.
 4. Подключить React Router: страницы «Доска», «Архив», «Ярлыки», «Вход».
 5. Подключить TanStack Query.
 6. Создать клиент Supabase, ключи вынести в `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`), добавить `.env.local` в `.gitignore`.
@@ -252,7 +252,7 @@
 
 **Требования:** нефункциональные (сохранность данных).
 
-**Стек:** GitHub Actions, `pg_dump` (Supabase CLI `supabase db dump`), Vitest, Playwright, ESLint.
+**Стек:** GitHub Actions, `pg_dump` (Supabase CLI `supabase db dump`), Vitest, Playwright, oxlint.
 
 **Подзадачи:**
 1. Сделать workflow CI: на каждый push — lint, unit-тесты, сборка.

@@ -80,7 +80,7 @@
 
 | Инструмент | Зачем |
 |---|---|
-| **ESLint** | Статический анализ |
+| **oxlint** | Статический анализ (линтер из шаблона Vite, быстрее ESLint) |
 | **Prettier** | Единое форматирование |
 | **Vitest** + **React Testing Library** | Unit- и компонентные тесты |
 | **Playwright** | E2E-тесты: создание заметки, перенос между столбцами, архив; прогон в эмуляции iPhone (WebKit) |
@@ -93,7 +93,7 @@
 |---|---|
 | **Node.js LTS** + npm | Сборка и запуск фронтенда |
 | **Git** | Контроль версий |
-| **VS Code** | Редактор (расширения: ESLint, Prettier, Tailwind CSS IntelliSense) |
+| **VS Code** | Редактор (расширения: oxc, Prettier, Tailwind CSS IntelliSense) |
 | **Supabase CLI** | Миграции, генерация типов, локальная база |
 | **Docker Desktop** | Нужен Supabase CLI для локальной копии Supabase. *Необязательно:* можно разрабатывать сразу на облачном проекте |
 | **Chrome / Edge** | Разработка, DevTools, проверка установки PWA на Windows |
