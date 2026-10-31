@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
+import { useRealtimeSync } from '../hooks/useRealtimeSync'
 import { MutationErrorBanner } from './MutationErrorBanner'
 
 const navItems = [
@@ -13,6 +14,7 @@ export function Layout() {
   const meta = session?.user.user_metadata ?? {}
   const name: string = meta.full_name ?? meta.name ?? session?.user.email ?? ''
   const avatarUrl: string | undefined = meta.avatar_url
+  const online = useRealtimeSync(session!.user.id)
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -67,6 +69,14 @@ export function Layout() {
       </header>
 
       <main className="flex-1 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {!online && (
+          <div
+            role="status"
+            className="mx-auto mb-4 max-w-xl rounded-lg border border-[#fbbc04]/40 bg-[#fbbc04]/10 px-4 py-2 text-center text-sm"
+          >
+            Нет связи. Изменения с других устройств появятся, когда соединение восстановится.
+          </div>
+        )}
         <MutationErrorBanner />
         <Outlet />
       </main>

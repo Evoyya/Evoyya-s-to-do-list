@@ -52,6 +52,9 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   }, [])
 
   // Изменённые поля; null — если название пустое и сохранять нельзя
+  // Сравниваем с тем, что было при открытии, а не с текущей заметкой: если поле
+  // тем временем изменили на другом устройстве, а здесь его не трогали — не затираем
+  const initial = useRef(note).current
   const collectChanges = (): NotePatch | null => {
     const trimmed = title.trim()
     if (!trimmed) {
@@ -59,11 +62,11 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
       return null
     }
     const patch: NotePatch = {}
-    if (trimmed !== note.title) patch.title = trimmed
+    if (trimmed !== initial.title) patch.title = trimmed
     const desc = description.trim() || null
-    if (desc !== note.description) patch.description = desc
-    if (kind !== note.kind) patch.kind = kind
-    if (urgency !== note.urgency) patch.urgency = urgency
+    if (desc !== initial.description) patch.description = desc
+    if (kind !== initial.kind) patch.kind = kind
+    if (urgency !== initial.urgency) patch.urgency = urgency
     return patch
   }
 
