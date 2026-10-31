@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
+import { useAuth } from '../auth/AuthProvider'
+import {
+  useAddNoteLabel,
+  useLabelsFor,
+  useRemoveNoteLabel,
+  useSetPrimaryLabel,
+} from '../hooks/useLabels'
 import { useUpdateNote } from '../hooks/useNotes'
+import { cardStyle } from '../lib/color'
 import type { Note, NoteKind, NotePatch } from '../lib/notes'
 import { ChecklistEditor } from './ChecklistEditor'
-import { ArchiveIcon } from './icons'
+import { ArchiveIcon, LabelIcon } from './icons'
+import { LabelChips, LabelPicker } from './LabelPicker'
 import type { Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
 import { UrgencySelect } from './UrgencySelect'
@@ -17,6 +26,16 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   const [kind, setKind] = useState<NoteKind>(note.kind)
   const [urgency, setUrgency] = useState<Urgency>(note.urgency)
   const [titleError, setTitleError] = useState(false)
+
+  // ТР-5: ярлыки сохраняются сразу, окно перекрашивается под основной
+  const { session } = useAuth()
+  const labels = useLabelsFor()(note)
+  const [labelsOpen, setLabelsOpen] = useState(false)
+  const addNoteLabel = useAddNoteLabel()
+  const removeNoteLabel = useRemoveNoteLabel()
+  const setPrimaryLabel = useSetPrimaryLabel()
+  // На общей заметке ярлыки ставит её создатель (ТР-9)
+  const canLabel = note.owner_id === session?.user.id
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -69,6 +88,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
       onClick={(e) => {
         if (e.target === dialogRef.current) save()
       }}
+      style={cardStyle(labels[0]?.color)}
       className="m-auto max-h-[90dvh] w-[min(36rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-0 text-text shadow-2xl outline-none backdrop:bg-black/60"
     >
       <div className="flex flex-col gap-2 p-4">
@@ -93,10 +113,32 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
           className="field-sizing-content max-h-[40dvh] min-h-10 resize-none bg-transparent px-1 py-1 text-base outline-none placeholder:text-text-muted"
         />
         <ChecklistEditor noteId={note.id} />
+        <LabelChips labels={labels} onClick={canLabel ? () => setLabelsOpen(true) : undefined} />
+        {labelsOpen && (
+          <LabelPicker
+            selected={labels.map((l) => l.id)}
+            primaryId={labels[0]?.id ?? null}
+            onToggle={(labelId, on) =>
+              (on ? addNoteLabel : removeNoteLabel).mutate({ note_id: note.id, label_id: labelId })
+            }
+            onSetPrimary={(labelId) => setPrimaryLabel.mutate({ noteId: note.id, labelId })}
+          />
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <div className="flex flex-wrap items-center gap-2">
             <KindToggle value={kind} onChange={setKind} />
             {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
+            {canLabel && (
+              <button
+                type="button"
+                onClick={() => setLabelsOpen(!labelsOpen)}
+                aria-expanded={labelsOpen}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-surface hover:text-text"
+              >
+                <LabelIcon />
+                Ярлыки
+              </button>
+            )}
           </div>
           <div className="flex gap-1">
             <button

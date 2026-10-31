@@ -21,6 +21,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useUpdateNote } from '../hooks/useNotes'
 import { positionBetween, type ChecklistItem } from '../lib/checklist'
+import type { Label } from '../lib/labels'
 import type { Note } from '../lib/notes'
 import { URGENCIES, type Urgency } from '../lib/urgency'
 import { NoteCard } from './NoteCard'
@@ -47,10 +48,12 @@ function findColumn(id: string, columns: Columns): Urgency | undefined {
 export function UrgencyBoard({
   notes,
   itemsByNote,
+  labelsFor,
   onOpen,
 }: {
   notes: Note[]
   itemsByNote: Map<string, ChecklistItem[]>
+  labelsFor: (note: Note) => Label[]
   onOpen: (id: string) => void
 }) {
   const updateNote = useUpdateNote()
@@ -158,6 +161,7 @@ export function UrgencyBoard({
                     <NoteCard
                       note={note}
                       items={itemsByNote.get(id) ?? NO_ITEMS}
+                      labels={labelsFor(note)}
                       onOpen={() => onOpen(id)}
                     />
                   </SortableNote>
@@ -171,7 +175,11 @@ export function UrgencyBoard({
       <DragOverlay>
         {activeNote && (
           <div className="rotate-2 shadow-2xl">
-            <NoteCard note={activeNote} items={itemsByNote.get(activeNote.id) ?? NO_ITEMS} />
+            <NoteCard
+              note={activeNote}
+              items={itemsByNote.get(activeNote.id) ?? NO_ITEMS}
+              labels={labelsFor(activeNote)}
+            />
           </div>
         )}
       </DragOverlay>

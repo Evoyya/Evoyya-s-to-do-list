@@ -5,9 +5,12 @@ export function useOptimisticList<TItem, TVars>(
   queryKey: QueryKey,
   mutationFn: (vars: TVars) => Promise<void>,
   apply: (items: TItem[], vars: TVars) => TItem[],
+  // Мутации с одним scope выполняются по очереди
+  scope?: { id: string },
 ) {
   const queryClient = useQueryClient()
   return useMutation({
+    scope,
     mutationFn,
     onMutate: async (vars) => {
       await queryClient.cancelQueries({ queryKey })

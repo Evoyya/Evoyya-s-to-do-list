@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { TrashIcon, UnarchiveIcon } from '../components/icons'
 import { NoteCard } from '../components/NoteCard'
 import { useItemsByNote } from '../hooks/useChecklist'
+import { useLabelsFor } from '../hooks/useLabels'
 import { useArchivedNotes, useDeleteArchivedNote, useRestoreNote } from '../hooks/useNotes'
 import type { ChecklistItem } from '../lib/checklist'
 
@@ -11,6 +12,7 @@ const NO_ITEMS: ChecklistItem[] = []
 export function ArchivePage() {
   const { data: notes = [], isPending, error } = useArchivedNotes()
   const itemsByNote = useItemsByNote()
+  const labelsFor = useLabelsFor()
   const restoreNote = useRestoreNote()
   const deleteNote = useDeleteArchivedNote()
 
@@ -39,6 +41,7 @@ export function ArchivePage() {
               compact
               note={note}
               items={itemsByNote.get(note.id) ?? NO_ITEMS}
+              labels={labelsFor(note)}
               actions={
                 <>
                   <IconButton label="Восстановить" onClick={() => restoreNote.mutate(note.id)}>

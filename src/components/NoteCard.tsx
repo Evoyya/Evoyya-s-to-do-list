@@ -1,20 +1,26 @@
 import type { ReactNode } from 'react'
 import { useUpdateItem } from '../hooks/useChecklist'
 import type { ChecklistItem } from '../lib/checklist'
+import { cardStyle } from '../lib/color'
+import type { Label } from '../lib/labels'
 import type { Note } from '../lib/notes'
 import { Checkbox, doneLabel } from './Checkbox'
+import { LabelChips } from './LabelPicker'
 
 const MAX_VISIBLE_ITEMS = 8
 
 export function NoteCard({
   note,
   items,
+  labels = [],
   onOpen,
   actions,
   compact = false,
 }: {
   note: Note
   items: ChecklistItem[]
+  // Ярлыки, основной первым: по нему красится карточка (ТР-5)
+  labels?: Label[]
   // Без onOpen карточка не открывается (например, в архиве)
   onOpen?: () => void
   actions?: ReactNode
@@ -31,6 +37,7 @@ export function NoteCard({
       role={onOpen ? 'button' : undefined}
       tabIndex={onOpen ? 0 : undefined}
       onClick={onOpen}
+      style={cardStyle(labels[0]?.color)}
       onKeyDown={(e) => {
         if (onOpen && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
@@ -65,6 +72,7 @@ export function NoteCard({
         </ul>
       )}
       {doneCount > 0 && <p className="text-sm text-text-muted">{doneLabel(doneCount)}</p>}
+      <LabelChips labels={labels} />
       {actions && (
         // С мышью кнопки появляются при наведении, как в Keep; на телефоне видны всегда
         <div

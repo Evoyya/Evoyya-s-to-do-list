@@ -18,8 +18,10 @@ import {
   type NotePatch,
 } from '../lib/notes'
 import type { Urgency } from '../lib/urgency'
+import { insertNoteLabels, type NoteLabel } from '../lib/labels'
 import { useOptimisticList } from './optimistic'
 import { ITEMS_KEY } from './useChecklist'
+import { LABELS_SCOPE, NOTE_LABELS_KEY } from './useLabels'
 
 const NOTES_KEY = ['notes'] as const
 
@@ -33,6 +35,8 @@ export type NewNote = {
   kind: NoteKind
   urgency: Urgency
   items: string[]
+  labelIds: string[]
+  primaryLabelId: string | null
 }
 
 // Заметка и её пункты создаются вместе: сначала заметка, потом пункты (им нужна заметка)
@@ -40,28 +44,48 @@ export function useCreateNote() {
   const { session } = useAuth()
   const queryClient = useQueryClient()
   const mutation = useMutation({
-    mutationFn: async ({ note, items }: { note: Note; items: ChecklistItem[] }) => {
+    // В очереди с ярлыками: ярлык, созданный прямо в форме, должен сохраниться раньше
+    scope: LABELS_SCOPE,
+    mutationFn: async ({
+      note,
+      items,
+      labels,
+    }: {
+      note: Note
+      items: ChecklistItem[]
+      labels: NoteLabel[]
+    }) => {
+      // Основной ярлык ссылается на связь заметки с ярлыком, поэтому ставится последним
       await insertNote(note)
       await insertChecklistItems(items)
+      await insertNoteLabels(labels)
+      if (note.primary_label_id) {
+        await updateNote(note.id, { primary_label_id: note.primary_label_id })
+      }
     },
-    onMutate: async ({ note, items }) => {
+    onMutate: async ({ note, items, labels }) => {
       await queryClient.cancelQueries({ queryKey: NOTES_KEY })
       await queryClient.cancelQueries({ queryKey: ITEMS_KEY })
+      await queryClient.cancelQueries({ queryKey: NOTE_LABELS_KEY })
       const previousNotes = queryClient.getQueryData<Note[]>(NOTES_KEY)
       const previousItems = queryClient.getQueryData<ChecklistItem[]>(ITEMS_KEY)
+      const previousLabels = queryClient.getQueryData<NoteLabel[]>(NOTE_LABELS_KEY)
       queryClient.setQueryData<Note[]>(NOTES_KEY, (old = []) => [...old, note].sort(byPosition))
       queryClient.setQueryData<ChecklistItem[]>(ITEMS_KEY, (old = []) =>
         [...old, ...items].sort(byItemPosition),
       )
-      return { previousNotes, previousItems }
+      queryClient.setQueryData<NoteLabel[]>(NOTE_LABELS_KEY, (old = []) => [...old, ...labels])
+      return { previousNotes, previousItems, previousLabels }
     },
     onError: (_error, _vars, context) => {
       if (context?.previousNotes) queryClient.setQueryData(NOTES_KEY, context.previousNotes)
       if (context?.previousItems) queryClient.setQueryData(ITEMS_KEY, context.previousItems)
+      if (context?.previousLabels) queryClient.setQueryData(NOTE_LABELS_KEY, context.previousLabels)
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: NOTES_KEY })
       void queryClient.invalidateQueries({ queryKey: ITEMS_KEY })
+      void queryClient.invalidateQueries({ queryKey: NOTE_LABELS_KEY })
     },
   })
 
@@ -77,13 +101,14 @@ export function useCreateNote() {
       urgency: input.urgency,
       // Новая заметка встаёт первой
       position: Math.min(0, ...notes.map((n) => n.position)) - 1,
-      primary_label_id: null,
+      primary_label_id: input.primaryLabelId,
       archived_at: null,
       created_at: now,
       updated_at: now,
     }
     const items = input.items.map((text, i) => makeItem(note.id, text, i))
-    mutation.mutate({ note, items })
+    const labels = input.labelIds.map((label_id) => ({ note_id: note.id, label_id }))
+    mutation.mutate({ note, items, labels })
   }
 }
 

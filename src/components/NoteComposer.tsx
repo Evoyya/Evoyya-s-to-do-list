@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useMyLabels } from '../hooks/useLabels'
 import { useCreateNote } from '../hooks/useNotes'
+import { cardStyle } from '../lib/color'
 import type { NoteKind } from '../lib/notes'
 import { Checkbox } from './Checkbox'
+import { LabelIcon } from './icons'
+import { LabelChips, LabelPicker } from './LabelPicker'
 import { DEFAULT_URGENCY, type Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
 import { UrgencySelect } from './UrgencySelect'
@@ -16,6 +20,14 @@ export function NoteComposer() {
   const [urgency, setUrgency] = useState<Urgency>(DEFAULT_URGENCY)
   // null — список не добавлен; иначе черновики пунктов
   const [items, setItems] = useState<string[] | null>(null)
+  // ТР-5: ярлыки новой заметки; основной — выбранный звёздочкой или первый по алфавиту
+  const myLabels = useMyLabels()
+  const [labelIds, setLabelIds] = useState<string[]>([])
+  const [primaryId, setPrimaryId] = useState<string | null>(null)
+  const [labelsOpen, setLabelsOpen] = useState(false)
+  const chosen = myLabels.filter((l) => labelIds.includes(l.id))
+  const primary = chosen.find((l) => l.id === primaryId) ?? chosen[0]
+  const ordered = primary ? [primary, ...chosen.filter((l) => l !== primary)] : chosen
 
   const reset = () => {
     setOpen(false)
@@ -24,6 +36,9 @@ export function NoteComposer() {
     setKind('temporary')
     setUrgency(DEFAULT_URGENCY)
     setItems(null)
+    setLabelIds([])
+    setPrimaryId(null)
+    setLabelsOpen(false)
   }
 
   const handleSubmit = (e: FormEvent) => {
@@ -36,6 +51,8 @@ export function NoteComposer() {
       kind,
       urgency,
       items: (items ?? []).map((i) => i.trim()).filter(Boolean),
+      labelIds,
+      primaryLabelId: primary && primary.id === primaryId ? primary.id : null,
     })
     reset()
   }
@@ -55,6 +72,7 @@ export function NoteComposer() {
   return (
     <form
       onSubmit={handleSubmit}
+      style={cardStyle(ordered[0]?.color)}
       className="mx-auto flex w-full max-w-xl flex-col gap-2 rounded-lg border border-border bg-surface-raised p-3 shadow-lg"
     >
       <input
@@ -74,10 +92,30 @@ export function NoteComposer() {
         className="field-sizing-content min-h-12 resize-none bg-transparent px-1 py-1 text-base outline-none placeholder:text-text-muted"
       />
       {items && <DraftChecklist items={items} onChange={setItems} />}
+      <LabelChips labels={ordered} onClick={() => setLabelsOpen(true)} />
+      {labelsOpen && (
+        <LabelPicker
+          selected={labelIds}
+          primaryId={primary?.id ?? null}
+          onToggle={(id, on) =>
+            setLabelIds((ids) => (on ? [...ids, id] : ids.filter((x) => x !== id)))
+          }
+          onSetPrimary={setPrimaryId}
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <KindToggle value={kind} onChange={setKind} />
           {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
+          <button
+            type="button"
+            onClick={() => setLabelsOpen(!labelsOpen)}
+            aria-expanded={labelsOpen}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm text-text-muted hover:bg-surface hover:text-text"
+          >
+            <LabelIcon />
+            Ярлыки
+          </button>
           {!items && (
             <button
               type="button"
