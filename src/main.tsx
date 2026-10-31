@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
@@ -7,16 +7,16 @@ import { RequireAuth } from './auth/RequireAuth'
 import { Layout } from './components/Layout'
 import { ToastProvider } from './components/Toast'
 import './index.css'
-import { ArchivePage } from './pages/ArchivePage'
+import { persistOptions, queryClient } from './lib/queryClient'
 import { BoardPage } from './pages/BoardPage'
-import { LoginPage } from './pages/LoginPage'
-import { LabelsPage } from './pages/LabelsPage'
-import { StatsPage } from './pages/StatsPage'
 
-const queryClient = new QueryClient()
-
+// Доска загружается сразу, остальные страницы — когда на них перейдут:
+// так приложение открывается быстрее
 const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  {
+    path: '/login',
+    lazy: async () => ({ Component: (await import('./pages/LoginPage')).LoginPage }),
+  },
   {
     element: <RequireAuth />,
     children: [
@@ -24,9 +24,18 @@ const router = createBrowserRouter([
         element: <Layout />,
         children: [
           { index: true, element: <BoardPage /> },
-          { path: 'archive', element: <ArchivePage /> },
-          { path: 'labels', element: <LabelsPage /> },
-          { path: 'stats', element: <StatsPage /> },
+          {
+            path: 'archive',
+            lazy: async () => ({ Component: (await import('./pages/ArchivePage')).ArchivePage }),
+          },
+          {
+            path: 'labels',
+            lazy: async () => ({ Component: (await import('./pages/LabelsPage')).LabelsPage }),
+          },
+          {
+            path: 'stats',
+            lazy: async () => ({ Component: (await import('./pages/StatsPage')).StatsPage }),
+          },
         ],
       },
     ],
@@ -36,12 +45,12 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <AuthProvider>
         <ToastProvider>
           <RouterProvider router={router} />
         </ToastProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </StrictMode>,
 )

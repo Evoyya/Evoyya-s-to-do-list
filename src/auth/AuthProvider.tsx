@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, use, useEffect, useState, type ReactNode } from 'react'
+import { clearCachedData } from '../lib/queryClient'
 import { supabase } from '../lib/supabase'
 
 type AuthState = {
@@ -22,7 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // Выход (в том числе по истечении сессии) стирает сохранённые на устройстве данные
+      if (event === 'SIGNED_OUT') clearCachedData()
       setSession(newSession)
       setLoading(false)
     })

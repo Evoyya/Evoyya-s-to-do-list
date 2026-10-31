@@ -4,6 +4,7 @@ import { useRealtimeSync } from '../hooks/useRealtimeSync'
 import { Avatar } from './Avatar'
 import { LogoutIcon } from './icons'
 import { MutationErrorBanner } from './MutationErrorBanner'
+import { UpdatePrompt } from './UpdatePrompt'
 
 const navItems = [
   { to: '/', label: 'Доска', end: true },
@@ -71,6 +72,7 @@ export function Layout() {
             Нет связи. Изменения с других устройств появятся, когда соединение восстановится.
           </div>
         )}
+        <UpdatePrompt />
         <MutationErrorBanner />
         <Outlet />
       </main>

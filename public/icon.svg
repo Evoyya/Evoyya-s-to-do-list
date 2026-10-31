@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Значок приложения: жёлтая заметка со списком на тёмном фоне, в духе Keep.
+       Фон на весь квадрат, а рисунок в центральных 60% — так значок не обрезается
+       в круг или скруглённый квадрат на Android и iPhone (maskable). -->
+  <rect width="512" height="512" fill="#202124"/>
+  <rect x="136" y="116" width="240" height="280" rx="28" fill="#fbbc04"/>
+  <g fill="none" stroke="#202124" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M172 182l18 18 32-34"/>
+    <path d="M172 252l18 18 32-34"/>
+    <path d="M250 186h90M250 256h90"/>
+    <rect x="172" y="306" width="44" height="44" rx="8"/>
+    <path d="M250 328h70"/>
+  </g>
+</svg>
