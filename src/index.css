@@ -36,8 +36,8 @@
     z-index: -1;
     pointer-events: none;
     background:
-      radial-gradient(ellipse 38% 30% at 22% 0%, rgb(160 110 190 / 0.28), transparent 70%),
-      radial-gradient(ellipse 55% 45% at 42% -8%, rgb(110 64 200 / 0.42), transparent 72%),
-      radial-gradient(ellipse 70% 60% at 50% -15%, rgb(70 40 140 / 0.25), transparent 75%);
+      radial-gradient(ellipse 30% 38% at 22% 2%, rgb(170 120 200 / 0.38), transparent 70%),
+      radial-gradient(ellipse 45% 55% at 38% -4%, rgb(120 70 210 / 0.55), transparent 70%),
+      radial-gradient(ellipse 75% 70% at 45% -12%, rgb(80 45 160 / 0.35), transparent 75%);
   }
 }
