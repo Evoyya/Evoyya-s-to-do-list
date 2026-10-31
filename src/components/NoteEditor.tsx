@@ -6,7 +6,7 @@ import {
   useRemoveNoteLabel,
   useSetPrimaryLabel,
 } from '../hooks/useLabels'
-import { useUpdateNote } from '../hooks/useNotes'
+import { useArchive, useUpdateNote } from '../hooks/useNotes'
 import { cardStyle } from '../lib/color'
 import type { Note, NoteKind, NotePatch } from '../lib/notes'
 import { ChecklistEditor } from './ChecklistEditor'
@@ -19,6 +19,7 @@ import { UrgencySelect } from './UrgencySelect'
 // Окно редактирования. Как в Keep: закрытие (Esc, клик мимо, «Готово») сохраняет изменения.
 export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
   const updateNote = useUpdateNote()
+  const { archive: archiveNote } = useArchive()
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   const [title, setTitle] = useState(note.title)
@@ -75,8 +76,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
 
   // ТР-8: архивация обратима, поэтому без подтверждения
   const archive = () => {
-    const patch = collectChanges() ?? {}
-    updateNote.mutate({ id: note.id, patch: { ...patch, archived_at: new Date().toISOString() } })
+    archiveNote(note, collectChanges() ?? {})
     onClose()
   }
 

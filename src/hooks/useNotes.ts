@@ -19,6 +19,7 @@ import {
 } from '../lib/notes'
 import type { Urgency } from '../lib/urgency'
 import { insertNoteLabels, type NoteLabel } from '../lib/labels'
+import { useToast } from '../components/Toast'
 import { useOptimisticList } from './optimistic'
 import { ITEMS_KEY } from './useChecklist'
 import { LABELS_SCOPE, NOTE_LABELS_KEY } from './useLabels'
@@ -132,16 +133,65 @@ export function useArchivedNotes() {
   return useQuery({ queryKey: ARCHIVED_KEY, queryFn: fetchArchivedNotes })
 }
 
-export function useRestoreNote() {
-  return useOptimisticList<Note, string>(
-    ARCHIVED_KEY,
-    (id) => updateNote(id, { archived_at: null }),
-    (notes, id) => notes.filter((n) => n.id !== id),
-  )
-}
-
 export function useDeleteArchivedNote() {
   return useOptimisticList<Note, string>(ARCHIVED_KEY, deleteNote, (notes, id) =>
     notes.filter((n) => n.id !== id),
   )
+}
+
+// ТР-8: в архив и обратно. Заметка сразу переезжает между доской и архивом,
+// а в уведомлении можно отменить действие.
+export function useArchive() {
+  const queryClient = useQueryClient()
+  const showToast = useToast()
+
+  const mutation = useMutation({
+    mutationFn: ({ note, patch }: { note: Note; patch: NotePatch }) => updateNote(note.id, patch),
+    onMutate: async ({ note }) => {
+      await queryClient.cancelQueries({ queryKey: NOTES_KEY })
+      const previousBoard = queryClient.getQueryData<Note[]>(NOTES_KEY)
+      const previousArchive = queryClient.getQueryData<Note[]>(ARCHIVED_KEY)
+      const without = (old: Note[] = []) => old.filter((n) => n.id !== note.id)
+      if (note.archived_at) {
+        queryClient.setQueryData<Note[]>(NOTES_KEY, without)
+        queryClient.setQueryData<Note[]>(ARCHIVED_KEY, (old) => [note, ...without(old)])
+      } else {
+        queryClient.setQueryData<Note[]>(ARCHIVED_KEY, without)
+        queryClient.setQueryData<Note[]>(NOTES_KEY, (old) =>
+          [...without(old), note].sort(byPosition),
+        )
+      }
+      return { previousBoard, previousArchive }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previousBoard) queryClient.setQueryData(NOTES_KEY, context.previousBoard)
+      if (context?.previousArchive) queryClient.setQueryData(ARCHIVED_KEY, context.previousArchive)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: NOTES_KEY }),
+  })
+
+  const setArchived = (note: Note, archived: boolean, extra: NotePatch = {}) => {
+    const patch = { ...extra, archived_at: archived ? new Date().toISOString() : null }
+    mutation.mutate({ note: { ...note, ...patch }, patch })
+    return { ...note, ...patch }
+  }
+
+  // extra — несохранённые правки из окна заметки
+  const archive = (note: Note, extra?: NotePatch) => {
+    const archived = setArchived(note, true, extra)
+    showToast('Заметка в архиве', {
+      label: 'Отменить',
+      onClick: () => setArchived(archived, false),
+    })
+  }
+
+  const restore = (note: Note) => {
+    const restored = setArchived(note, false)
+    showToast('Заметка восстановлена', {
+      label: 'Отменить',
+      onClick: () => setArchived(restored, true),
+    })
+  }
+
+  return { archive, restore }
 }

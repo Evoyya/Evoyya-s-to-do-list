@@ -5,6 +5,7 @@ import { cardStyle } from '../lib/color'
 import type { Label } from '../lib/labels'
 import type { Note } from '../lib/notes'
 import { Checkbox, doneLabel } from './Checkbox'
+import { ArchiveIcon } from './icons'
 import { LabelChips } from './LabelPicker'
 
 const MAX_VISIBLE_ITEMS = 8
@@ -15,6 +16,7 @@ export function NoteCard({
   labels = [],
   onOpen,
   actions,
+  onArchive,
   compact = false,
 }: {
   note: Note
@@ -24,6 +26,9 @@ export function NoteCard({
   // Без onOpen карточка не открывается (например, в архиве)
   onOpen?: () => void
   actions?: ReactNode
+  // ТР-8: кнопка «В архив» в углу карточки — на ПК при наведении, на телефоне скрыта
+  // (там архивируют из окна заметки, чтобы не задеть кнопку при прокрутке)
+  onArchive?: () => void
   // Плотная карточка, как в архиве Keep
   compact?: boolean
 }) {
@@ -44,11 +49,28 @@ export function NoteCard({
           onOpen()
         }
       }}
-      className={`group flex w-full flex-col rounded-lg border border-border/60 bg-surface text-left transition-colors hover:border-border ${
+      className={`group relative flex w-full flex-col rounded-lg border border-border/60 bg-surface text-left transition-colors hover:border-border ${
         compact ? 'gap-1.5 px-3 pt-2.5 pb-2' : 'gap-2 p-4'
       } ${onOpen ? 'cursor-pointer' : ''}`}
     >
       <h3 className="font-medium break-words">{note.title}</h3>
+      {onArchive && (
+        <button
+          type="button"
+          title="В архив"
+          aria-label={`В архив: ${note.title}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onArchive()
+          }}
+          // Нажатие на кнопку не должно начинать перетаскивание карточки
+          onMouseDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="absolute top-2 right-2 hidden rounded-full bg-surface-raised p-1.5 text-text-muted opacity-0 shadow transition-opacity group-hover:opacity-100 hover:text-text focus-visible:opacity-100 pointer-fine:block"
+        >
+          <ArchiveIcon />
+        </button>
+      )}
       {/* ТР-3: пустое описание не занимает места */}
       {note.description && (
         <p className="line-clamp-6 text-sm break-words whitespace-pre-wrap text-text-muted">

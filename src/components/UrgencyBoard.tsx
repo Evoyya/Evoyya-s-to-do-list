@@ -50,11 +50,13 @@ export function UrgencyBoard({
   itemsByNote,
   labelsFor,
   onOpen,
+  onArchive,
 }: {
   notes: Note[]
   itemsByNote: Map<string, ChecklistItem[]>
   labelsFor: (note: Note) => Label[]
   onOpen: (id: string) => void
+  onArchive: (note: Note) => void
 }) {
   const updateNote = useUpdateNote()
   const byId = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes])
@@ -163,6 +165,7 @@ export function UrgencyBoard({
                       items={itemsByNote.get(id) ?? NO_ITEMS}
                       labels={labelsFor(note)}
                       onOpen={() => onOpen(id)}
+                      onArchive={() => onArchive(note)}
                     />
                   </SortableNote>
                 )

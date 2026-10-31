@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { ColorPicker } from '../components/ColorPicker'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { TrashIcon } from '../components/icons'
 import { useClickOutside } from '../hooks/useClickOutside'
 import {
@@ -156,15 +157,11 @@ function LabelRow({ label, labels, count }: { label: Label; labels: Label[]; cou
     pickerOpen,
   )
 
+  // Сами заметки остаются, поэтому спрашиваем, только если ярлык где-то висит
+  const [confirming, setConfirming] = useState(false)
   const remove = () => {
-    // Сами заметки остаются, поэтому спрашиваем, только если ярлык где-то висит
-    if (
-      count > 0 &&
-      !window.confirm(`Удалить ярлык «${label.name}»? Он снимется с ${fromNotes(count)}.`)
-    ) {
-      return
-    }
-    deleteLabel.mutate(label.id)
+    if (count > 0) setConfirming(true)
+    else deleteLabel.mutate(label.id)
   }
 
   return (
@@ -224,6 +221,18 @@ function LabelRow({ label, labels, count }: { label: Label; labels: Label[]; cou
             </button>
           </div>
         </>
+      )}
+      {confirming && (
+        <ConfirmDialog
+          title="Удалить ярлык?"
+          message={`Ярлык «${label.name}» снимется с ${fromNotes(count)}. Сами заметки останутся.`}
+          confirmLabel="Удалить"
+          onConfirm={() => {
+            setConfirming(false)
+            deleteLabel.mutate(label.id)
+          }}
+          onCancel={() => setConfirming(false)}
+        />
       )}
     </li>
   )

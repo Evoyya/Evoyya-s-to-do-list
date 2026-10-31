@@ -7,7 +7,7 @@ import { NoteEditor } from '../components/NoteEditor'
 import { UrgencyBoard } from '../components/UrgencyBoard'
 import { useItemsByNote } from '../hooks/useChecklist'
 import { useLabelsFor, useMyLabels } from '../hooks/useLabels'
-import { useNotes } from '../hooks/useNotes'
+import { useArchive, useNotes } from '../hooks/useNotes'
 import type { ChecklistItem } from '../lib/checklist'
 import type { Label } from '../lib/labels'
 import type { Note } from '../lib/notes'
@@ -17,6 +17,7 @@ export function BoardPage() {
   const itemsByNote = useItemsByNote()
   const labelsFor = useLabelsFor()
   const myLabels = useMyLabels()
+  const { archive } = useArchive()
   const [openedId, setOpenedId] = useState<string | null>(null)
   const opened = notes.find((n) => n.id === openedId)
 
@@ -52,6 +53,7 @@ export function BoardPage() {
               notes={pinned}
               itemsByNote={itemsByNote}
               labelsFor={labelsFor}
+              onArchive={archive}
               onOpen={setOpenedId}
               empty={
                 filter ? 'Нет постоянных заметок с этим ярлыком' : 'Постоянных заметок пока нет'
@@ -63,6 +65,7 @@ export function BoardPage() {
               notes={temporary}
               itemsByNote={itemsByNote}
               labelsFor={labelsFor}
+              onArchive={archive}
               onOpen={setOpenedId}
             />
           </Section>
@@ -137,12 +140,14 @@ function NoteGrid({
   itemsByNote,
   labelsFor,
   onOpen,
+  onArchive,
   empty,
 }: {
   notes: Note[]
   itemsByNote: Map<string, ChecklistItem[]>
   labelsFor: (note: Note) => Label[]
   onOpen: (id: string) => void
+  onArchive: (note: Note) => void
   empty: string
 }) {
   if (notes.length === 0) return <p className="text-sm text-text-muted">{empty}</p>
@@ -155,6 +160,7 @@ function NoteGrid({
             items={itemsByNote.get(note.id) ?? NO_ITEMS}
             labels={labelsFor(note)}
             onOpen={() => onOpen(note.id)}
+            onArchive={() => onArchive(note)}
           />
         </li>
       ))}
