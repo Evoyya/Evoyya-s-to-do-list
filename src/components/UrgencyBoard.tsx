@@ -21,7 +21,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useUpdateNote } from '../hooks/useNotes'
 import { positionBetween, type ChecklistItem } from '../lib/checklist'
-import type { Label } from '../lib/labels'
+import type { LabelView } from '../hooks/useLabels'
 import type { Note } from '../lib/notes'
 import { URGENCIES, type Urgency } from '../lib/urgency'
 import { NoteCard } from './NoteCard'
@@ -54,7 +54,7 @@ export function UrgencyBoard({
 }: {
   notes: Note[]
   itemsByNote: Map<string, ChecklistItem[]>
-  labelsFor: (note: Note) => Label[]
+  labelsFor: (note: Note) => LabelView
   onOpen: (id: string) => void
   onArchive: (note: Note) => void
 }) {
@@ -126,7 +126,7 @@ export function UrgencyBoard({
       byId.get(list[index + 1])?.position,
     )
     setOverride({ columns: { ...columns, [column]: list }, notes })
-    updateNote.mutate({ id: activeKey, patch: { urgency: column, position } })
+    updateNote.mutate({ note, patch: { urgency: column, position } })
   }
 
   const activeNote = activeId ? byId.get(activeId) : undefined
@@ -163,7 +163,7 @@ export function UrgencyBoard({
                     <NoteCard
                       note={note}
                       items={itemsByNote.get(id) ?? NO_ITEMS}
-                      labels={labelsFor(note)}
+                      view={labelsFor(note)}
                       onOpen={() => onOpen(id)}
                       onArchive={() => onArchive(note)}
                     />
@@ -181,7 +181,7 @@ export function UrgencyBoard({
             <NoteCard
               note={activeNote}
               items={itemsByNote.get(activeNote.id) ?? NO_ITEMS}
-              labels={labelsFor(activeNote)}
+              view={labelsFor(activeNote)}
             />
           </div>
         )}

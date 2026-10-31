@@ -4,7 +4,8 @@ import { useMutationState, useQueryClient } from '@tanstack/react-query'
 export function MutationErrorBanner() {
   const queryClient = useQueryClient()
   const errors = useMutationState({
-    filters: { status: 'error' },
+    // Ошибки с meta.silent показывает само окно, где их совершили
+    filters: { status: 'error', predicate: (m) => !m.options.meta?.silent },
     select: (mutation) => mutation.state.error,
   })
   const last = errors.at(-1)

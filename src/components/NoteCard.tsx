@@ -1,9 +1,13 @@
 import type { ReactNode } from 'react'
+import { useAuth } from '../auth/AuthProvider'
+import { useMembersByNote } from '../hooks/useMembers'
+import type { LabelView } from '../hooks/useLabels'
 import { useUpdateItem } from '../hooks/useChecklist'
 import type { ChecklistItem } from '../lib/checklist'
 import { cardStyle } from '../lib/color'
-import type { Label } from '../lib/labels'
+import { memberName } from '../lib/members'
 import type { Note } from '../lib/notes'
+import { Avatar } from './Avatar'
 import { Checkbox, doneLabel } from './Checkbox'
 import { ArchiveIcon } from './icons'
 import { LabelChips } from './LabelPicker'
@@ -13,7 +17,7 @@ const MAX_VISIBLE_ITEMS = 8
 export function NoteCard({
   note,
   items,
-  labels = [],
+  view,
   onOpen,
   actions,
   onArchive,
@@ -21,8 +25,8 @@ export function NoteCard({
 }: {
   note: Note
   items: ChecklistItem[]
-  // Ярлыки, основной первым: по нему красится карточка (ТР-5)
-  labels?: Label[]
+  // Видимые ярлыки и цвет карточки (ТР-5, ТР-9)
+  view?: LabelView
   // Без onOpen карточка не открывается (например, в архиве)
   onOpen?: () => void
   actions?: ReactNode
@@ -33,6 +37,11 @@ export function NoteCard({
   compact?: boolean
 }) {
   const updateItem = useUpdateItem()
+  const { session } = useAuth()
+  // ТР-9: на общей заметке видны аватары остальных участников, как в Keep
+  const others = (useMembersByNote().get(note.id) ?? []).filter(
+    (m) => m.user_id !== session?.user.id,
+  )
   const active = items.filter((i) => !i.is_done)
   const doneCount = items.length - active.length
 
@@ -42,7 +51,7 @@ export function NoteCard({
       role={onOpen ? 'button' : undefined}
       tabIndex={onOpen ? 0 : undefined}
       onClick={onOpen}
-      style={cardStyle(labels[0]?.color)}
+      style={cardStyle(view?.color)}
       onKeyDown={(e) => {
         if (onOpen && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
@@ -94,7 +103,16 @@ export function NoteCard({
         </ul>
       )}
       {doneCount > 0 && <p className="text-sm text-text-muted">{doneLabel(doneCount)}</p>}
-      <LabelChips labels={labels} />
+      {view && <LabelChips labels={view.labels} />}
+      {others.length > 0 && (
+        <ul className="flex justify-end gap-1" aria-label="Участники">
+          {others.map((m) => (
+            <li key={m.user_id}>
+              <Avatar name={memberName(m)} url={m.profile?.avatar_url} className="size-6 text-xs" />
+            </li>
+          ))}
+        </ul>
+      )}
       {actions && (
         // С мышью кнопки появляются при наведении, как в Keep; на телефоне видны всегда
         <div

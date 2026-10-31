@@ -13,6 +13,7 @@ import {
   fetchNotes,
   insertNote,
   updateNote,
+  updateSharedNote,
   type Note,
   type NoteKind,
   type NotePatch,
@@ -61,7 +62,7 @@ export function useCreateNote() {
       await insertChecklistItems(items)
       await insertNoteLabels(labels)
       if (note.primary_label_id) {
-        await updateNote(note.id, { primary_label_id: note.primary_label_id })
+        await updateSharedNote(note.id, { primary_label_id: note.primary_label_id })
       }
     },
     onMutate: async ({ note, items, labels }) => {
@@ -114,12 +115,12 @@ export function useCreateNote() {
 }
 
 export function useUpdateNote() {
-  return useOptimisticList<Note, { id: string; patch: NotePatch }>(
+  return useOptimisticList<Note, { note: Note; patch: NotePatch }>(
     NOTES_KEY,
-    ({ id, patch }) => updateNote(id, patch),
-    (notes, { id, patch }) =>
+    ({ note, patch }) => updateNote(note, patch),
+    (notes, { note, patch }) =>
       notes
-        .map((n) => (n.id === id ? { ...n, ...patch } : n))
+        .map((n) => (n.id === note.id ? { ...n, ...patch } : n))
         // Заархивированная заметка сразу уходит с доски
         .filter((n) => !n.archived_at)
         .sort(byPosition),
@@ -134,8 +135,8 @@ export function useArchivedNotes() {
 }
 
 export function useDeleteArchivedNote() {
-  return useOptimisticList<Note, string>(ARCHIVED_KEY, deleteNote, (notes, id) =>
-    notes.filter((n) => n.id !== id),
+  return useOptimisticList<Note, Note>(ARCHIVED_KEY, deleteNote, (notes, note) =>
+    notes.filter((n) => n.id !== note.id),
   )
 }
 
@@ -148,7 +149,9 @@ export function useArchive() {
   const mutation = useMutation({
     // По очереди: «Отменить» не должен обогнать на сервере само действие
     scope: { id: 'archive' },
-    mutationFn: ({ note, patch }: { note: Note; patch: NotePatch }) => updateNote(note.id, patch),
+    // note — заметка до изменения: по ней видно, где хранится её место
+    mutationFn: ({ before, patch }: { note: Note; before: Note; patch: NotePatch }) =>
+      updateNote(before, patch),
     onMutate: async ({ note }) => {
       await queryClient.cancelQueries({ queryKey: NOTES_KEY })
       const previousBoard = queryClient.getQueryData<Note[]>(NOTES_KEY)
@@ -174,7 +177,7 @@ export function useArchive() {
 
   const setArchived = (note: Note, archived: boolean, extra: NotePatch = {}) => {
     const patch = { ...extra, archived_at: archived ? new Date().toISOString() : null }
-    mutation.mutate({ note: { ...note, ...patch }, patch })
+    mutation.mutate({ note: { ...note, ...patch }, before: note, patch })
     return { ...note, ...patch }
   }
 

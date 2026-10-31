@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
 import { useRealtimeSync } from '../hooks/useRealtimeSync'
+import { Avatar } from './Avatar'
 import { MutationErrorBanner } from './MutationErrorBanner'
 
 const navItems = [
@@ -42,22 +43,7 @@ export function Layout() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-3">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={name}
-              title={name}
-              referrerPolicy="no-referrer"
-              className="size-8 rounded-full"
-            />
-          ) : (
-            <span
-              title={name}
-              className="flex size-8 items-center justify-center rounded-full bg-accent/30 text-sm"
-            >
-              {name.slice(0, 1).toUpperCase()}
-            </span>
-          )}
+          <Avatar name={name} url={avatarUrl} />
           <button
             type="button"
             onClick={() => void signOut()}

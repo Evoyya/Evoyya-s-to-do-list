@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider'
 import {
   byName,
   orderLabels,
+  sameName,
   deleteLabel,
   deleteNoteLabel,
   fetchLabels,
@@ -15,7 +16,7 @@ import {
   type LabelPatch,
   type NoteLabel,
 } from '../lib/labels'
-import { updateNote, type Note } from '../lib/notes'
+import { updateSharedNote, type Note } from '../lib/notes'
 import { useOptimisticList } from './optimistic'
 
 export const LABELS_KEY = ['labels'] as const
@@ -60,10 +61,43 @@ export function useLabelsByNote() {
   }, [labels, rows])
 }
 
-// Ярлыки заметки для карточки: основной первым
+// Как заметка выглядит у пользователя: какие ярлыки видны, каким цветом карточка
+// и каких ярлыков создателя у него не хватает
+export type LabelView = {
+  labels: Label[]
+  color?: string
+  missing: Label[]
+}
+
+const NO_LABELS: LabelView = { labels: [], missing: [] }
+
+// ТР-5, ТР-9: на своей заметке — свои ярлыки, основной первым.
+// На чужой общей — ярлыки создателя, подменённые своими с тем же названием;
+// ярлыка без пары не видно, а карточка красится только своим ярлыком,
+// совпавшим с основным ярлыком создателя.
 export function useLabelsFor() {
+  const { session } = useAuth()
+  const me = session?.user.id
   const byNote = useLabelsByNote()
-  return useCallback((note: Note) => orderLabels(note, byNote.get(note.id) ?? []), [byNote])
+  const mine = useMyLabels()
+  return useCallback(
+    (note: Note): LabelView => {
+      const ordered = orderLabels(note, byNote.get(note.id) ?? [])
+      if (ordered.length === 0) return NO_LABELS
+      if (note.owner_id === me) return { labels: ordered, color: ordered[0].color, missing: [] }
+
+      const labels: Label[] = []
+      const missing: Label[] = []
+      for (const label of ordered) {
+        const own = mine.find((l) => sameName(l.name, label.name))
+        if (own) labels.push(own)
+        else missing.push(label)
+      }
+      const primaryOwn = mine.find((l) => sameName(l.name, ordered[0].name))
+      return { labels, color: primaryOwn?.color, missing }
+    },
+    [byNote, mine, me],
+  )
 }
 
 export function useCreateLabel() {
@@ -136,7 +170,7 @@ export function useRemoveNoteLabel() {
 export function useSetPrimaryLabel() {
   return useOptimisticList<Note, { noteId: string; labelId: string }>(
     ['notes'],
-    ({ noteId, labelId }) => updateNote(noteId, { primary_label_id: labelId }),
+    ({ noteId, labelId }) => updateSharedNote(noteId, { primary_label_id: labelId }),
     (notes, { noteId, labelId }) =>
       notes.map((n) => (n.id === noteId ? { ...n, primary_label_id: labelId } : n)),
     LABELS_SCOPE,

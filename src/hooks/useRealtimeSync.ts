@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ITEMS_KEY } from './useChecklist'
 import { LABELS_KEY, NOTE_LABELS_KEY } from './useLabels'
+import { MEMBERS_KEY } from './useMembers'
 
 // Какие данные перезагрузить, когда в таблице что-то изменилось.
 // ['notes'] — и доска, и архив (у архива ключ начинается так же).
@@ -13,7 +14,7 @@ const KEYS_BY_TABLE: Record<string, QueryKey[]> = {
   labels: [LABELS_KEY],
   note_labels: [NOTE_LABELS_KEY],
   // Поделились заметкой или закрыли доступ — меняется всё, что видно
-  note_members: [['notes'], ITEMS_KEY, LABELS_KEY, NOTE_LABELS_KEY],
+  note_members: [['notes'], MEMBERS_KEY, ITEMS_KEY, LABELS_KEY, NOTE_LABELS_KEY],
 }
 
 // Сколько ждать, прежде чем показать «Нет связи»: короткие обрывы не в счёт

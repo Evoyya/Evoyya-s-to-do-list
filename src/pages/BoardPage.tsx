@@ -6,7 +6,7 @@ import { NoteComposer } from '../components/NoteComposer'
 import { NoteEditor } from '../components/NoteEditor'
 import { UrgencyBoard } from '../components/UrgencyBoard'
 import { useItemsByNote } from '../hooks/useChecklist'
-import { useLabelsFor, useMyLabels } from '../hooks/useLabels'
+import { useLabelsFor, useMyLabels, type LabelView } from '../hooks/useLabels'
 import { useArchive, useNotes } from '../hooks/useNotes'
 import type { ChecklistItem } from '../lib/checklist'
 import type { Label } from '../lib/labels'
@@ -25,7 +25,9 @@ export function BoardPage() {
   const [params, setParams] = useSearchParams()
   const filter = myLabels.find((l) => l.id === params.get('label'))
   const setFilter = (id: string | null) => setParams(id ? { label: id } : {}, { replace: true })
-  const visible = filter ? notes.filter((n) => labelsFor(n).some((l) => l.id === filter.id)) : notes
+  const visible = filter
+    ? notes.filter((n) => labelsFor(n).labels.some((l) => l.id === filter.id))
+    : notes
 
   // ТР-1: постоянные — только в закрепе, временные — только ниже
   const pinned = visible.filter((n) => n.kind === 'permanent')
@@ -145,7 +147,7 @@ function NoteGrid({
 }: {
   notes: Note[]
   itemsByNote: Map<string, ChecklistItem[]>
-  labelsFor: (note: Note) => Label[]
+  labelsFor: (note: Note) => LabelView
   onOpen: (id: string) => void
   onArchive: (note: Note) => void
   empty: string
@@ -158,7 +160,7 @@ function NoteGrid({
           <NoteCard
             note={note}
             items={itemsByNote.get(note.id) ?? NO_ITEMS}
-            labels={labelsFor(note)}
+            view={labelsFor(note)}
             onOpen={() => onOpen(note.id)}
             onArchive={() => onArchive(note)}
           />

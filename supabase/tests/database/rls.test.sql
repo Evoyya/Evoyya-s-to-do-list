@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(24);
+select plan(30);
 
 -- ------------------------------------------------------------
 -- Тестовые данные: пользователь A (создатель) и B (девушка)
@@ -191,6 +191,77 @@ delete from public.note_labels
 select is(
   (select primary_label_id from public.notes where id = '10000000-0000-0000-0000-000000000002'),
   null::uuid, 'ТР-5: после снятия ярлыка основной ярлык сбрасывается'
+);
+
+-- ------------------------------------------------------------
+-- Этап 9: у временной задачи у каждого своё место (столбец, порядок, архив)
+-- ------------------------------------------------------------
+
+select public.share_note('10000000-0000-0000-0000-000000000001', 'b@test.local');
+
+select is(
+  (select urgency::text from public.note_members
+   where note_id = '10000000-0000-0000-0000-000000000001'
+     and user_id = '00000000-0000-0000-0000-00000000000b'),
+  'critical', 'ТР-9: новый участник начинает со столбца владельца'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b"}', true);
+
+update public.note_members set urgency = 'no_deadline', archived_at = now()
+  where note_id = '10000000-0000-0000-0000-000000000001'
+    and user_id = '00000000-0000-0000-0000-00000000000b';
+
+-- Место A для B недоступно: строка просто не находится
+update public.note_members set urgency = 'urgent'
+  where note_id = '10000000-0000-0000-0000-000000000001'
+    and user_id = '00000000-0000-0000-0000-00000000000a';
+
+select throws_ok(
+  $$ update public.note_members set role = 'owner'
+     where note_id = '10000000-0000-0000-0000-000000000001'
+       and user_id = '00000000-0000-0000-0000-00000000000b' $$,
+  '42501', null, 'ТР-9: участник не может сменить себе роль'
+);
+
+select is(
+  (select count(*)::int from public.note_members
+   where note_id = '10000000-0000-0000-0000-000000000001'
+     and user_id = '00000000-0000-0000-0000-00000000000b'
+     and archived_at is not null),
+  1, 'ТР-9: B отправляет общую задачу в свой архив'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000a"}', true);
+
+select is(
+  (select urgency::text || ', в архиве: ' || (archived_at is not null)::text
+   from public.note_members
+   where note_id = '10000000-0000-0000-0000-000000000001'
+     and user_id = '00000000-0000-0000-0000-00000000000a'),
+  'critical, в архиве: false', 'ТР-9: действия B не двигают задачу у A'
+);
+
+-- A закрывает доступ к задаче
+delete from public.note_members
+  where note_id = '10000000-0000-0000-0000-000000000001'
+    and user_id = '00000000-0000-0000-0000-00000000000b';
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b"}', true);
+
+select is(
+  (select count(*)::int from public.notes where id = '10000000-0000-0000-0000-000000000001'),
+  0, 'ТР-9: после закрытия доступа B не видит задачу'
+);
+
+-- B сам выходит из общей заметки
+delete from public.note_members
+  where note_id = '10000000-0000-0000-0000-000000000002'
+    and user_id = '00000000-0000-0000-0000-00000000000b';
+
+select is(
+  (select count(*)::int from public.notes),
+  0, 'ТР-9: B может выйти из общей заметки'
 );
 
 -- ------------------------------------------------------------

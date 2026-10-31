@@ -10,8 +10,10 @@ import { useArchive, useUpdateNote } from '../hooks/useNotes'
 import { cardStyle } from '../lib/color'
 import type { Note, NoteKind, NotePatch } from '../lib/notes'
 import { ChecklistEditor } from './ChecklistEditor'
-import { ArchiveIcon, LabelIcon } from './icons'
+import { ArchiveIcon, LabelIcon, PersonAddIcon } from './icons'
 import { LabelChips, LabelPicker } from './LabelPicker'
+import { MissingLabels } from './MissingLabels'
+import { SharePanel } from './SharePanel'
 import type { Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
 import { UrgencySelect } from './UrgencySelect'
@@ -30,9 +32,13 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
 
   // ТР-5: ярлыки сохраняются сразу, окно перекрашивается под основной
   const { session } = useAuth()
-  const labels = useLabelsFor()(note)
+  const view = useLabelsFor()(note)
+  const labels = view.labels
   const [labelsOpen, setLabelsOpen] = useState(false)
   const labelsButtonRef = useRef<HTMLButtonElement>(null)
+  // ТР-9: совместный доступ
+  const [shareOpen, setShareOpen] = useState(false)
+  const shareButtonRef = useRef<HTMLButtonElement>(null)
   // Окно закрывается кликом по затемнению, только если и нажали, и отпустили мимо окна:
   // выделение текста, начатое внутри и законченное снаружи, окно не закрывает
   const pressedOutside = useRef(false)
@@ -73,7 +79,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   const save = () => {
     const patch = collectChanges()
     if (!patch) return
-    if (Object.keys(patch).length > 0) updateNote.mutate({ id: note.id, patch })
+    if (Object.keys(patch).length > 0) updateNote.mutate({ note, patch })
     onClose()
   }
 
@@ -98,7 +104,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
       onClick={(e) => {
         if (e.target === dialogRef.current && pressedOutside.current) save()
       }}
-      style={cardStyle(labels[0]?.color)}
+      style={cardStyle(view.color)}
       className="m-auto max-h-[90dvh] w-[min(36rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-0 text-text shadow-2xl outline-none backdrop:bg-black/60"
     >
       <div className="flex flex-col gap-2 p-4">
@@ -124,6 +130,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
         />
         <ChecklistEditor noteId={note.id} />
         <LabelChips labels={labels} onClick={canLabel ? () => setLabelsOpen(true) : undefined} />
+        <MissingLabels missing={view.missing} />
         {labelsOpen && (
           <LabelPicker
             selected={labels.map((l) => l.id)}
@@ -136,6 +143,14 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
             toggleRef={labelsButtonRef}
           />
         )}
+        {shareOpen && (
+          <SharePanel
+            note={note}
+            onLeft={onClose}
+            onClose={() => setShareOpen(false)}
+            toggleRef={shareButtonRef}
+          />
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <div className="flex flex-wrap items-center gap-2">
             <KindToggle value={kind} onChange={setKind} />
@@ -146,12 +161,26 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
                 type="button"
                 onClick={() => setLabelsOpen(!labelsOpen)}
                 aria-expanded={labelsOpen}
+                title="Ярлыки"
+                aria-label="Ярлыки"
                 className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-surface hover:text-text"
               >
                 <LabelIcon />
-                Ярлыки
+                <span className="hidden sm:inline">Ярлыки</span>
               </button>
             )}
+            <button
+              ref={shareButtonRef}
+              type="button"
+              onClick={() => setShareOpen(!shareOpen)}
+              aria-expanded={shareOpen}
+              title="Совместный доступ"
+              aria-label="Совместный доступ"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-surface hover:text-text"
+            >
+              <PersonAddIcon />
+              <span className="hidden sm:inline">Доступ</span>
+            </button>
           </div>
           <div className="flex gap-1">
             <button

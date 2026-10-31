@@ -3,7 +3,9 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { TrashIcon, UnarchiveIcon } from '../components/icons'
 import { NoteCard } from '../components/NoteCard'
 import { useItemsByNote } from '../hooks/useChecklist'
+import { useAuth } from '../auth/AuthProvider'
 import { useLabelsFor } from '../hooks/useLabels'
+import { useMembersByNote } from '../hooks/useMembers'
 import { useArchive, useArchivedNotes, useDeleteArchivedNote } from '../hooks/useNotes'
 import type { ChecklistItem } from '../lib/checklist'
 import type { Note } from '../lib/notes'
@@ -20,6 +22,18 @@ export function ArchivePage() {
 
   // Удаление навсегда — единственное необратимое действие с заметкой, поэтому с подтверждением
   const [deleting, setDeleting] = useState<Note | null>(null)
+  // ТР-9: владелец удаляет общую заметку у всех, участник — только у себя
+  const { session } = useAuth()
+  const membersByNote = useMembersByNote()
+  const deleteMessage = (note: Note) => {
+    if (note.owner_id !== session?.user.id) {
+      return `Заметка «${note.title}» общая: она пропадёт у вас, а у создателя останется.`
+    }
+    const shared = (membersByNote.get(note.id)?.length ?? 1) > 1
+    return `Заметка «${note.title}» будет удалена без возможности восстановления${
+      shared ? ' — и у всех, с кем вы ею поделились' : ''
+    }.`
+  }
 
   // Поиск по названию, описанию и пунктам списка, без учёта регистра
   const [query, setQuery] = useState('')
@@ -64,7 +78,7 @@ export function ArchivePage() {
               compact
               note={note}
               items={itemsByNote.get(note.id) ?? NO_ITEMS}
-              labels={labelsFor(note)}
+              view={labelsFor(note)}
               actions={
                 <>
                   <IconButton label="Восстановить" onClick={() => restore(note)}>
@@ -83,10 +97,10 @@ export function ArchivePage() {
       {deleting && (
         <ConfirmDialog
           title="Удалить навсегда?"
-          message={`Заметка «${deleting.title}» будет удалена без возможности восстановления.`}
+          message={deleteMessage(deleting)}
           confirmLabel="Удалить"
           onConfirm={() => {
-            deleteNote.mutate(deleting.id)
+            deleteNote.mutate(deleting)
             setDeleting(null)
           }}
           onCancel={() => setDeleting(null)}
