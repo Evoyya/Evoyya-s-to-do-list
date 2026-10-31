@@ -146,6 +146,8 @@ export function useArchive() {
   const showToast = useToast()
 
   const mutation = useMutation({
+    // По очереди: «Отменить» не должен обогнать на сервере само действие
+    scope: { id: 'archive' },
     mutationFn: ({ note, patch }: { note: Note; patch: NotePatch }) => updateNote(note.id, patch),
     onMutate: async ({ note }) => {
       await queryClient.cancelQueries({ queryKey: NOTES_KEY })
