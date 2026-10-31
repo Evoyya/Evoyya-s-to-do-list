@@ -138,8 +138,9 @@ export function UrgencyBoard({
         setOverride(null)
       }}
     >
-      {/* Телефон: столбцы листаются вбок. Ноутбук: четыре столбца рядом. */}
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
+      {/* Телефон: группы строками сверху вниз, от «Критично» до «Без дедлайна».
+          Ноутбук: четыре столбца рядом, между ними тонкие линии. */}
+      <div className="flex flex-col gap-6 md:grid md:grid-cols-4 md:gap-0 md:divide-x md:divide-border/60">
         {URGENCIES.map((u) => (
           <Column
             key={u.value}
@@ -196,7 +197,7 @@ function Column({
   return (
     <section
       aria-label={label}
-      className="flex w-[85%] shrink-0 snap-start flex-col gap-3 md:w-auto"
+      className="flex min-w-0 flex-col gap-3 md:px-3 md:first:pl-0 md:last:pr-0"
     >
       <h3 className="flex items-center gap-2 text-sm font-medium">
         <span
@@ -209,11 +210,15 @@ function Column({
       </h3>
       <ul
         ref={setNodeRef}
-        className={`flex min-h-24 flex-col gap-3 rounded-lg border border-dashed p-1 transition-colors ${
+        className={`flex min-h-12 flex-col gap-3 rounded-lg border border-dashed p-1 transition-colors md:min-h-24 ${
           isOver ? 'border-border' : 'border-transparent'
         }`}
       >
         {children}
+        {count === 0 && (
+          // На телефоне пустая группа видна как тонкая строка, в неё можно бросить карточку
+          <li className="px-2 py-2 text-sm text-text-muted/70 md:hidden">Пусто</li>
+        )}
       </ul>
     </section>
   )
