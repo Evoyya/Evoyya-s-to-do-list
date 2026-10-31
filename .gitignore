@@ -1,0 +1,18 @@
+# Зависимости и сборка
+node_modules/
+dist/
+
+# Секреты
+.env
+.env.*
+!.env.example
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
+# Системное
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
