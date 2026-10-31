@@ -35,7 +35,7 @@
 2. Установить Supabase CLI. При желании разрабатывать с локальной базой — установить Docker Desktop.
 3. Зарегистрироваться в GitHub, Supabase и Vercel (последние два — через GitHub).
 4. Создать репозиторий на GitHub, склонировать его, положить туда `REQUIREMENTS.md`, `STACK.md`, `ROADMAP.md`.
-5. Создать проект в Supabase, выбрать ближайший регион, сохранить URL проекта и `anon`-ключ.
+5. Создать проект в Supabase, выбрать ближайший регион, сохранить URL проекта и публичный ключ (`sb_publishable_…`).
 6. Создать проект в Google Cloud Console, настроить экран согласия OAuth (scopes: `email`, `profile`, `openid`), создать OAuth-клиент типа Web application.
 
 **Готово, когда:** все аккаунты созданы, репозиторий склонирован, ключи Supabase и Google сохранены в надёжном месте (не в репозитории).
@@ -80,7 +80,7 @@
 3. Настроить ESLint и Prettier.
 4. Подключить React Router: страницы «Доска», «Архив», «Ярлыки», «Вход».
 5. Подключить TanStack Query.
-6. Создать клиент Supabase, ключи вынести в `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), добавить `.env.local` в `.gitignore`.
+6. Создать клиент Supabase, ключи вынести в `.env.local` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`), добавить `.env.local` в `.gitignore`.
 7. В Supabase включить провайдер Google, вставить Client ID и Secret из Google Cloud.
 8. Сделать страницу входа «Войти через Google» и защиту маршрутов (без входа — редирект на вход).
 9. Сделать шапку с аватаром и кнопкой «Выйти».
