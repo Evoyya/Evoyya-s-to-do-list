@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import { useAuth } from '../auth/AuthProvider'
+import { useClickOutside } from '../hooks/useClickOutside'
 import { useCreateLabel, useMyLabels } from '../hooks/useLabels'
 import { freeColor, labelProblem, makeLabel, sameName, type Label } from '../lib/labels'
 import { Checkbox } from './Checkbox'
@@ -13,13 +14,20 @@ export function LabelPicker({
   primaryId,
   onToggle,
   onSetPrimary,
+  onClose,
+  toggleRef,
 }: {
   selected: string[]
   // Действующий основной ярлык (уже с учётом «первый по алфавиту»)
   primaryId: string | null
   onToggle: (labelId: string, on: boolean) => void
   onSetPrimary: (labelId: string) => void
+  // Клик мимо списка закрывает его; кнопка, которая его открывает, не считается
+  onClose: () => void
+  toggleRef: RefObject<HTMLElement | null>
 }) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  useClickOutside([rootRef, toggleRef], onClose)
   const { session } = useAuth()
   const labels = useMyLabels()
   const createLabel = useCreateLabel()
@@ -40,7 +48,10 @@ export function LabelPicker({
   }
 
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border/60 bg-surface p-2">
+    <div
+      ref={rootRef}
+      className="flex flex-col gap-1 rounded-lg border border-border/60 bg-surface p-2"
+    >
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}

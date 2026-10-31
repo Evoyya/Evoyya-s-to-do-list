@@ -31,6 +31,10 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   const { session } = useAuth()
   const labels = useLabelsFor()(note)
   const [labelsOpen, setLabelsOpen] = useState(false)
+  const labelsButtonRef = useRef<HTMLButtonElement>(null)
+  // Окно закрывается кликом по затемнению, только если и нажали, и отпустили мимо окна:
+  // выделение текста, начатое внутри и законченное снаружи, окно не закрывает
+  const pressedOutside = useRef(false)
   const addNoteLabel = useAddNoteLabel()
   const removeNoteLabel = useRemoveNoteLabel()
   const setPrimaryLabel = useSetPrimaryLabel()
@@ -85,8 +89,11 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
         e.preventDefault()
         save()
       }}
+      onPointerDown={(e) => {
+        pressedOutside.current = e.target === dialogRef.current
+      }}
       onClick={(e) => {
-        if (e.target === dialogRef.current) save()
+        if (e.target === dialogRef.current && pressedOutside.current) save()
       }}
       style={cardStyle(labels[0]?.color)}
       className="m-auto max-h-[90dvh] w-[min(36rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-0 text-text shadow-2xl outline-none backdrop:bg-black/60"
@@ -122,6 +129,8 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
               (on ? addNoteLabel : removeNoteLabel).mutate({ note_id: note.id, label_id: labelId })
             }
             onSetPrimary={(labelId) => setPrimaryLabel.mutate({ noteId: note.id, labelId })}
+            onClose={() => setLabelsOpen(false)}
+            toggleRef={labelsButtonRef}
           />
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
@@ -130,6 +139,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
             {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
             {canLabel && (
               <button
+                ref={labelsButtonRef}
                 type="button"
                 onClick={() => setLabelsOpen(!labelsOpen)}
                 aria-expanded={labelsOpen}

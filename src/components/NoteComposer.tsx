@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useClickOutside } from '../hooks/useClickOutside'
 import { useMyLabels } from '../hooks/useLabels'
 import { useCreateNote } from '../hooks/useNotes'
 import { cardStyle } from '../lib/color'
@@ -41,8 +42,7 @@ export function NoteComposer() {
     setLabelsOpen(false)
   }
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
+  const save = () => {
     const trimmed = title.trim()
     if (!trimmed) return
     createNote({
@@ -56,6 +56,25 @@ export function NoteComposer() {
     })
     reset()
   }
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    save()
+  }
+
+  // Клик мимо формы на ПК: с названием заметка сохраняется, как в Keep;
+  // пустая форма просто сворачивается. Без названия, но с текстом — остаётся открытой,
+  // чтобы введённое не потерялось.
+  const formRef = useRef<HTMLFormElement>(null)
+  const labelsButtonRef = useRef<HTMLButtonElement>(null)
+  useClickOutside(
+    [formRef],
+    () => {
+      if (title.trim()) save()
+      else if (!description.trim() && !items?.some((i) => i.trim())) reset()
+    },
+    open,
+  )
 
   if (!open) {
     return (
@@ -71,6 +90,7 @@ export function NoteComposer() {
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       style={cardStyle(ordered[0]?.color)}
       className="mx-auto flex w-full max-w-xl flex-col gap-2 rounded-lg border border-border bg-surface-raised p-3 shadow-lg"
@@ -101,6 +121,8 @@ export function NoteComposer() {
             setLabelIds((ids) => (on ? [...ids, id] : ids.filter((x) => x !== id)))
           }
           onSetPrimary={setPrimaryId}
+          onClose={() => setLabelsOpen(false)}
+          toggleRef={labelsButtonRef}
         />
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -108,6 +130,7 @@ export function NoteComposer() {
           <KindToggle value={kind} onChange={setKind} />
           {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
           <button
+            ref={labelsButtonRef}
             type="button"
             onClick={() => setLabelsOpen(!labelsOpen)}
             aria-expanded={labelsOpen}

@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { ColorPicker } from '../components/ColorPicker'
 import { TrashIcon } from '../components/icons'
+import { useClickOutside } from '../hooks/useClickOutside'
 import {
   useCreateLabel,
   useDeleteLabel,
@@ -57,6 +58,9 @@ function NewLabelForm({ labels }: { labels: Label[] }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const color = chosen ?? freeColor(labels)
+  // Клик мимо формы сворачивает палитру; выбранный цвет остаётся
+  const formRef = useRef<HTMLFormElement>(null)
+  useClickOutside([formRef], () => setPickerOpen(false), pickerOpen)
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -74,6 +78,7 @@ function NewLabelForm({ labels }: { labels: Label[] }) {
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       className="flex flex-col gap-2 rounded-lg border border-border/60 bg-surface-raised p-3"
     >
@@ -140,6 +145,17 @@ function LabelRow({ label, labels, count }: { label: Label; labels: Label[]; cou
     setPickerOpen(false)
   }
 
+  // Клик мимо строки применяет цвет, как «Готово»; занятый цвет откатывается
+  const rowRef = useRef<HTMLLIElement>(null)
+  useClickOutside(
+    [rowRef],
+    () => {
+      if (colorProblem) setColor(label.color)
+      applyColor()
+    },
+    pickerOpen,
+  )
+
   const remove = () => {
     // Сами заметки остаются, поэтому спрашиваем, только если ярлык где-то висит
     if (
@@ -152,7 +168,7 @@ function LabelRow({ label, labels, count }: { label: Label; labels: Label[]; cou
   }
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-border/60 p-2">
+    <li ref={rowRef} className="flex flex-col gap-2 rounded-lg border border-border/60 p-2">
       <div className="flex items-center gap-2">
         <SwatchButton
           color={pickerOpen ? color : label.color}
