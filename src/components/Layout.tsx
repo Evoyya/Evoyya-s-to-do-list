@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
+import { MutationErrorBanner } from './MutationErrorBanner'
 
 const navItems = [
   { to: '/', label: 'Доска', end: true },
@@ -65,6 +66,7 @@ export function Layout() {
       </header>
 
       <main className="flex-1 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <MutationErrorBanner />
         <Outlet />
       </main>
     </div>
