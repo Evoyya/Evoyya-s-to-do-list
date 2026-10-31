@@ -17,7 +17,12 @@ export function ColorPicker({
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-surface p-3">
-      <div role="radiogroup" aria-label="Палитра" className="flex flex-wrap gap-2">
+      {/* Два ряда по 12, как в Google Календаре; на телефоне три ряда по 8 */}
+      <div
+        role="radiogroup"
+        aria-label="Палитра"
+        className="grid w-fit grid-cols-8 gap-2 sm:grid-cols-12"
+      >
         {PALETTE_COLORS.map(({ color, name }) => {
           const owner = takenBy.get(color)
           const selected = color === value
@@ -32,7 +37,7 @@ export function ColorPicker({
               disabled={!!owner}
               onClick={() => onChange(color)}
               style={{ backgroundColor: color, color: readableText(color).text }}
-              className={`flex size-8 items-center justify-center rounded-full border-2 text-sm disabled:cursor-not-allowed disabled:opacity-30 ${
+              className={`flex size-7 items-center justify-center rounded-full border-2 text-sm disabled:cursor-not-allowed disabled:opacity-30 sm:size-8 ${
                 selected ? 'border-text' : 'border-transparent hover:border-text-muted'
               }`}
             >
