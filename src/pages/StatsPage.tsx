@@ -197,7 +197,7 @@ function Bar({
           style={{ width: `${(count / max) * 100}%`, backgroundColor: color }}
         />
       </div>
-      <span className="w-16 text-right tabular-nums">
+      <span className="w-24 text-right whitespace-nowrap tabular-nums">
         {count}
         {extra && <span className="block text-xs text-text-muted">{extra}</span>}
       </span>
