@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { useAuth } from '../auth/AuthProvider'
-import { useDeleteNote, useUpdateNote } from '../hooks/useNotes'
+import { useUpdateNote } from '../hooks/useNotes'
 import type { Note, NoteKind, NotePatch } from '../lib/notes'
 import { ChecklistEditor } from './ChecklistEditor'
+import { ArchiveIcon } from './icons'
 import { KindToggle } from './KindToggle'
 
 // Окно редактирования. Как в Keep: закрытие (Esc, клик мимо, «Готово») сохраняет изменения.
 export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
-  const { session } = useAuth()
   const updateNote = useUpdateNote()
-  const deleteNote = useDeleteNote()
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   const [title, setTitle] = useState(note.title)
@@ -17,38 +15,48 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   const [kind, setKind] = useState<NoteKind>(note.kind)
   const [titleError, setTitleError] = useState(false)
 
-  const isOwner = note.owner_id === session?.user.id
-
   useEffect(() => {
-    dialogRef.current?.showModal()
+    const dialog = dialogRef.current
+    if (!dialog) return
+    dialog.showModal()
+    // showModal ставит фокус в первое поле, и на телефоне сразу выезжает клавиатура.
+    // Фокус на самом окне: клавиатура не открывается, а Esc по-прежнему закрывает окно.
+    dialog.focus()
   }, [])
 
-  const save = () => {
+  // Изменённые поля; null — если название пустое и сохранять нельзя
+  const collectChanges = (): NotePatch | null => {
     const trimmed = title.trim()
     if (!trimmed) {
       setTitleError(true)
-      return
+      return null
     }
-
     const patch: NotePatch = {}
     if (trimmed !== note.title) patch.title = trimmed
     const desc = description.trim() || null
     if (desc !== note.description) patch.description = desc
     if (kind !== note.kind) patch.kind = kind
+    return patch
+  }
 
+  const save = () => {
+    const patch = collectChanges()
+    if (!patch) return
     if (Object.keys(patch).length > 0) updateNote.mutate({ id: note.id, patch })
     onClose()
   }
 
-  const remove = () => {
-    if (!window.confirm(`Удалить заметку «${note.title}»? Это действие нельзя отменить.`)) return
-    deleteNote.mutate(note.id)
+  // ТР-8: архивация обратима, поэтому без подтверждения
+  const archive = () => {
+    const patch = collectChanges() ?? {}
+    updateNote.mutate({ id: note.id, patch: { ...patch, archived_at: new Date().toISOString() } })
     onClose()
   }
 
   return (
     <dialog
       ref={dialogRef}
+      tabIndex={-1}
       aria-label="Редактирование заметки"
       onCancel={(e) => {
         e.preventDefault()
@@ -57,7 +65,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
       onClick={(e) => {
         if (e.target === dialogRef.current) save()
       }}
-      className="m-auto max-h-[90dvh] w-[min(36rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-0 text-text shadow-2xl backdrop:bg-black/60"
+      className="m-auto max-h-[90dvh] w-[min(36rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-border bg-surface-raised p-0 text-text shadow-2xl outline-none backdrop:bg-black/60"
     >
       <div className="flex flex-col gap-2 p-4">
         <input
@@ -84,15 +92,14 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <KindToggle value={kind} onChange={setKind} />
           <div className="flex gap-1">
-            {isOwner && (
-              <button
-                type="button"
-                onClick={remove}
-                className="rounded-full px-4 py-1.5 text-sm text-red-400 hover:bg-red-400/10"
-              >
-                Удалить
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={archive}
+              title="В архив"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-surface hover:text-text"
+            >
+              <ArchiveIcon />В архив
+            </button>
             <button
               type="button"
               onClick={save}

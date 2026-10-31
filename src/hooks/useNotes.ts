@@ -9,6 +9,7 @@ import {
 import {
   byPosition,
   deleteNote,
+  fetchArchivedNotes,
   fetchNotes,
   insertNote,
   updateNote,
@@ -89,12 +90,31 @@ export function useUpdateNote() {
     NOTES_KEY,
     ({ id, patch }) => updateNote(id, patch),
     (notes, { id, patch }) =>
-      notes.map((n) => (n.id === id ? { ...n, ...patch } : n)).sort(byPosition),
+      notes
+        .map((n) => (n.id === id ? { ...n, ...patch } : n))
+        // Заархивированная заметка сразу уходит с доски
+        .filter((n) => !n.archived_at)
+        .sort(byPosition),
   )
 }
 
-export function useDeleteNote() {
-  return useOptimisticList<Note, string>(NOTES_KEY, deleteNote, (notes, id) =>
+// Ключ начинается с NOTES_KEY: любые изменения заметок обновляют и архив
+const ARCHIVED_KEY = [...NOTES_KEY, 'archived'] as const
+
+export function useArchivedNotes() {
+  return useQuery({ queryKey: ARCHIVED_KEY, queryFn: fetchArchivedNotes })
+}
+
+export function useRestoreNote() {
+  return useOptimisticList<Note, string>(
+    ARCHIVED_KEY,
+    (id) => updateNote(id, { archived_at: null }),
+    (notes, id) => notes.filter((n) => n.id !== id),
+  )
+}
+
+export function useDeleteArchivedNote() {
+  return useOptimisticList<Note, string>(ARCHIVED_KEY, deleteNote, (notes, id) =>
     notes.filter((n) => n.id !== id),
   )
 }

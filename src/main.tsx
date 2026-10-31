@@ -6,9 +6,10 @@ import { AuthProvider } from './auth/AuthProvider'
 import { RequireAuth } from './auth/RequireAuth'
 import { Layout } from './components/Layout'
 import './index.css'
+import { ArchivePage } from './pages/ArchivePage'
 import { BoardPage } from './pages/BoardPage'
 import { LoginPage } from './pages/LoginPage'
-import { ArchivePage, LabelsPage } from './pages/Placeholders'
+import { LabelsPage } from './pages/Placeholders'
 
 const queryClient = new QueryClient()
 

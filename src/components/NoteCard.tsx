@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useUpdateItem } from '../hooks/useChecklist'
 import type { ChecklistItem } from '../lib/checklist'
 import type { Note } from '../lib/notes'
@@ -9,10 +10,13 @@ export function NoteCard({
   note,
   items,
   onOpen,
+  actions,
 }: {
   note: Note
   items: ChecklistItem[]
-  onOpen: () => void
+  // Без onOpen карточка не открывается (например, в архиве)
+  onOpen?: () => void
+  actions?: ReactNode
 }) {
   const updateItem = useUpdateItem()
   const active = items.filter((i) => !i.is_done)
@@ -21,16 +25,18 @@ export function NoteCard({
   return (
     // div, а не button: внутри есть свои кнопки-чекбоксы
     <div
-      role="button"
-      tabIndex={0}
+      role={onOpen ? 'button' : undefined}
+      tabIndex={onOpen ? 0 : undefined}
       onClick={onOpen}
       onKeyDown={(e) => {
-        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+        if (onOpen && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()
           onOpen()
         }
       }}
-      className="flex w-full cursor-pointer flex-col gap-2 rounded-lg border border-border/60 bg-surface p-4 text-left transition-colors hover:border-border"
+      className={`flex w-full flex-col gap-2 rounded-lg border border-border/60 bg-surface p-4 text-left transition-colors hover:border-border ${
+        onOpen ? 'cursor-pointer' : ''
+      }`}
     >
       <h3 className="font-medium break-words">{note.title}</h3>
       {/* ТР-3: пустое описание не занимает места */}
@@ -56,6 +62,7 @@ export function NoteCard({
         </ul>
       )}
       {doneCount > 0 && <p className="text-sm text-text-muted">{doneLabel(doneCount)}</p>}
+      {actions && <div className="-mx-2 -mb-2 flex justify-end gap-1 pt-1">{actions}</div>}
     </div>
   )
 }

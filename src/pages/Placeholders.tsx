@@ -9,5 +9,4 @@ function Placeholder({ title, stage }: { title: string; stage: string }) {
   )
 }
 
-export const ArchivePage = () => <Placeholder title="Архив" stage="7" />
 export const LabelsPage = () => <Placeholder title="Ярлыки" stage="6" />

@@ -17,6 +17,17 @@ export async function fetchNotes(): Promise<Note[]> {
   return data
 }
 
+// ТР-8: архив, недавно заархивированные сверху
+export async function fetchArchivedNotes(): Promise<Note[]> {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .not('archived_at', 'is', null)
+    .order('archived_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
 export async function insertNote(note: Note) {
   const { id, title, description, kind, urgency, position } = note
   const { error } = await supabase
