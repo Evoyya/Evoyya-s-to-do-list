@@ -17,6 +17,7 @@ import {
   type NoteKind,
   type NotePatch,
 } from '../lib/notes'
+import type { Urgency } from '../lib/urgency'
 import { useOptimisticList } from './optimistic'
 import { ITEMS_KEY } from './useChecklist'
 
@@ -30,6 +31,7 @@ export type NewNote = {
   title: string
   description: string | null
   kind: NoteKind
+  urgency: Urgency
   items: string[]
 }
 
@@ -72,7 +74,7 @@ export function useCreateNote() {
       title: input.title,
       description: input.description,
       kind: input.kind,
-      urgency: 'no_deadline',
+      urgency: input.urgency,
       // Новая заметка встаёт первой
       position: Math.min(0, ...notes.map((n) => n.position)) - 1,
       primary_label_id: null,

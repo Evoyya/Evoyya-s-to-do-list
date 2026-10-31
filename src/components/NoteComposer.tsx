@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { useCreateNote } from '../hooks/useNotes'
 import type { NoteKind } from '../lib/notes'
 import { Checkbox } from './Checkbox'
+import { DEFAULT_URGENCY, type Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
+import { UrgencySelect } from './UrgencySelect'
 
 // Форма создания заметки: свёрнута в строку «Заметка…», раскрывается по нажатию
 export function NoteComposer() {
@@ -11,6 +13,7 @@ export function NoteComposer() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [kind, setKind] = useState<NoteKind>('temporary')
+  const [urgency, setUrgency] = useState<Urgency>(DEFAULT_URGENCY)
   // null — список не добавлен; иначе черновики пунктов
   const [items, setItems] = useState<string[] | null>(null)
 
@@ -19,6 +22,7 @@ export function NoteComposer() {
     setTitle('')
     setDescription('')
     setKind('temporary')
+    setUrgency(DEFAULT_URGENCY)
     setItems(null)
   }
 
@@ -30,6 +34,7 @@ export function NoteComposer() {
       title: trimmed,
       description: description.trim() || null,
       kind,
+      urgency,
       items: (items ?? []).map((i) => i.trim()).filter(Boolean),
     })
     reset()
@@ -72,6 +77,7 @@ export function NoteComposer() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <KindToggle value={kind} onChange={setKind} />
+          {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
           {!items && (
             <button
               type="button"

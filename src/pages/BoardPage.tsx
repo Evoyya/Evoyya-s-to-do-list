@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { NoteCard } from '../components/NoteCard'
 import { NoteComposer } from '../components/NoteComposer'
 import { NoteEditor } from '../components/NoteEditor'
+import { UrgencyBoard } from '../components/UrgencyBoard'
 import { useItemsByNote } from '../hooks/useChecklist'
 import { useNotes } from '../hooks/useNotes'
 import type { ChecklistItem } from '../lib/checklist'
@@ -37,14 +38,8 @@ export function BoardPage() {
               empty="Постоянных заметок пока нет"
             />
           </Section>
-          {/* Столбцы срочности появятся на этапе 5 */}
           <Section title="Задачи">
-            <NoteGrid
-              notes={temporary}
-              itemsByNote={itemsByNote}
-              onOpen={setOpenedId}
-              empty="Временных задач пока нет"
-            />
+            <UrgencyBoard notes={temporary} itemsByNote={itemsByNote} onOpen={setOpenedId} />
           </Section>
         </>
       )}

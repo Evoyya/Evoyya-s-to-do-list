@@ -3,7 +3,9 @@ import { useUpdateNote } from '../hooks/useNotes'
 import type { Note, NoteKind, NotePatch } from '../lib/notes'
 import { ChecklistEditor } from './ChecklistEditor'
 import { ArchiveIcon } from './icons'
+import type { Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
+import { UrgencySelect } from './UrgencySelect'
 
 // Окно редактирования. Как в Keep: закрытие (Esc, клик мимо, «Готово») сохраняет изменения.
 export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
@@ -13,6 +15,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   const [title, setTitle] = useState(note.title)
   const [description, setDescription] = useState(note.description ?? '')
   const [kind, setKind] = useState<NoteKind>(note.kind)
+  const [urgency, setUrgency] = useState<Urgency>(note.urgency)
   const [titleError, setTitleError] = useState(false)
 
   useEffect(() => {
@@ -36,6 +39,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
     const desc = description.trim() || null
     if (desc !== note.description) patch.description = desc
     if (kind !== note.kind) patch.kind = kind
+    if (urgency !== note.urgency) patch.urgency = urgency
     return patch
   }
 
@@ -90,7 +94,10 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
         />
         <ChecklistEditor noteId={note.id} />
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-          <KindToggle value={kind} onChange={setKind} />
+          <div className="flex flex-wrap items-center gap-2">
+            <KindToggle value={kind} onChange={setKind} />
+            {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
+          </div>
           <div className="flex gap-1">
             <button
               type="button"
