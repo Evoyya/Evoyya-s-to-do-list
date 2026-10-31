@@ -15,7 +15,8 @@ export function BoardPage() {
   const temporary = notes.filter((n) => n.kind === 'temporary')
 
   return (
-    <div className="flex flex-col gap-8">
+    // Доска шириной до 4 столбцов по центру экрана, как в Keep
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
       <NoteComposer />
 
       {error && (
