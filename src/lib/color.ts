@@ -29,8 +29,9 @@ export function normalizeHex(value: string) {
   return `#${full}`
 }
 
-// Карточка в цвете ярлыка. Переменные темы переопределены, чтобы весь текст
-// внутри (включая приглушённый) подстроился под фон.
+// Карточка в цвете ярлыка. Переменные темы переопределены, чтобы всё внутри
+// подстроилось под фон: текст — светлый или тёмный, подложки — полупрозрачные,
+// акцент — цвета текста (голубой на жёлтом не читается).
 export function cardStyle(color: string | undefined): CSSProperties | undefined {
   if (!color) return undefined
   const { text, muted } = readableText(color)
@@ -40,5 +41,9 @@ export function cardStyle(color: string | undefined): CSSProperties | undefined 
     color: text,
     '--color-text': text,
     '--color-text-muted': muted,
+    '--color-accent': text,
+    '--color-surface': 'rgb(0 0 0 / 0.14)',
+    '--color-surface-raised': 'rgb(0 0 0 / 0.22)',
+    '--color-border': muted,
   } as CSSProperties
 }

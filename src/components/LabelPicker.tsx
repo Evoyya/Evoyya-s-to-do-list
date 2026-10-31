@@ -115,7 +115,7 @@ function LabelOption({
           aria-pressed={isPrimary}
           title={isPrimary ? 'Основной ярлык: карточка в его цвете' : 'Сделать основным'}
           aria-label={`Основной ярлык: ${label.name}`}
-          className={`rounded-full p-1.5 hover:bg-surface-raised ${isPrimary ? 'text-[#fbbc04]' : 'text-text-muted'}`}
+          className={`rounded-full p-1.5 hover:bg-surface-raised ${isPrimary ? 'text-text' : 'text-text-muted'}`}
         >
           <StarIcon filled={isPrimary} />
         </button>

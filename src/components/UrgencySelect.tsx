@@ -23,7 +23,7 @@ export function UrgencySelect({
         className="cursor-pointer bg-transparent pr-1 text-text outline-none"
       >
         {URGENCIES.map((u) => (
-          <option key={u.value} value={u.value} className="bg-surface-raised">
+          <option key={u.value} value={u.value} className="bg-[#2d2e30] text-[#e8eaed]">
             {u.label}
           </option>
         ))}
