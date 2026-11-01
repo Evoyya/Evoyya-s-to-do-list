@@ -1,0 +1,55 @@
+# Ежедневный бэкап базы. Репозиторий публичный, поэтому бэкап шифруется
+# паролем из секрета BACKUP_PASSPHRASE: без него файл не прочитать.
+name: Backup
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # каждый день в 05:30 по Москве
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Бэкап базы
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Проверить секреты
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Добавьте секреты SUPABASE_DB_URL и BACKUP_PASSPHRASE (см. README)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.121.0
+
+      # Три файла, как в инструкции Supabase по восстановлению:
+      # роли, схема (таблицы, функции, RLS) и данные, включая пользователей
+      - name: Выгрузить базу
+        run: |
+          mkdir backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/data.sql --use-copy --data-only
+          ls -l backup
+
+      - name: Зашифровать
+        run: |
+          tar -czf backup.tar.gz -C backup .
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            --symmetric --cipher-algo AES256 -o "backup-$(date -u +%F).tar.gz.gpg" backup.tar.gz
+          rm -rf backup backup.tar.gz
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: database-backup
+          path: backup-*.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: error

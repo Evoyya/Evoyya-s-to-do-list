@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "Task-_"
+project_id = "evoyya-s-to-do-list"
 
 [api]
 enabled = true
@@ -266,9 +266,8 @@ template = "Your code is {{ .Code }}"
 max_frequency = "5s"
 
 # Use pre-defined map of phone number to OTP for testing.
-# Keys are the phone number with country code and without the + prefix.
 # [auth.sms.test_otp]
-# 14152127777 = "123456"
+# 4152127777 = "123456"
 
 # Configure logged in session timeouts.
 # [auth.sessions]

@@ -1,0 +1,45 @@
+# Автопроверки на каждый push и pull request: код и правила доступа к базе
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Новый push отменяет ещё идущую проверку того же бранча
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Код (lint, типы, тесты, сборка)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  database:
+    name: База (миграции и тесты RLS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.121.0
+      # Локальная база в Docker: применяются все миграции из supabase/migrations
+      - run: supabase db start
+      # pgTAP-тесты из supabase/tests: видимость заметок, ярлыки, общий доступ
+      - run: supabase test db

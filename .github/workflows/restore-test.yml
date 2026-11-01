@@ -1,0 +1,81 @@
+# Проверка восстановления: последний бэкап разворачивается в ОТДЕЛЬНЫЙ тестовый
+# проект Supabase (секрет RESTORE_DB_URL). Рабочую базу этот workflow не трогает.
+name: Restore test
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: 'ID запуска Backup (пусто — последний успешный)'
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  restore:
+    name: Восстановить бэкап в тестовый проект
+    runs-on: ubuntu-latest
+    env:
+      RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Проверить секреты и защиту рабочей базы
+        run: |
+          if [ -z "$RESTORE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Добавьте секреты RESTORE_DB_URL и BACKUP_PASSPHRASE (см. README)"
+            exit 1
+          fi
+          # zxkdvwwxxbdvdikdrojh — рабочий проект: восстанавливать поверх него нельзя
+          if echo "$RESTORE_DB_URL" | grep -q zxkdvwwxxbdvdikdrojh; then
+            echo "::error::RESTORE_DB_URL указывает на рабочую базу. Нужен отдельный тестовый проект."
+            exit 1
+          fi
+
+      - name: Найти бэкап
+        id: run
+        # Ввод передаётся через переменную, а не подставляется в скрипт
+        env:
+          RUN_ID: ${{ inputs.backup_run_id }}
+        run: |
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow backup.yml \
+              --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          if [ -z "$RUN_ID" ]; then echo "::error::Нет успешных бэкапов"; exit 1; fi
+          echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: database-backup
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+
+      - name: Расшифровать
+        run: |
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            -o backup.tar.gz --decrypt backup-*.tar.gz.gpg
+          mkdir backup && tar -xzf backup.tar.gz -C backup
+          ls -l backup
+
+      # Порядок и параметры — из инструкции Supabase «Restore to a new project»
+      - name: Восстановить
+        run: |
+          psql --single-transaction --variable ON_ERROR_STOP=1 \
+            --file backup/roles.sql \
+            --file backup/schema.sql \
+            --command 'SET session_replication_role = replica' \
+            --file backup/data.sql \
+            --dbname "$RESTORE_DB_URL"
+
+      - name: Посчитать восстановленные строки
+        run: |
+          psql "$RESTORE_DB_URL" --command "
+            select
+              (select count(*) from auth.users)             as users,
+              (select count(*) from public.notes)           as notes,
+              (select count(*) from public.checklist_items) as items,
+              (select count(*) from public.labels)          as labels,
+              (select count(*) from public.note_members)    as members"
