@@ -60,11 +60,17 @@ jobs:
           mkdir backup && tar -xzf backup.tar.gz -C backup
           ls -l backup
 
+      # Роли: в выгрузке только настройки стандартных ролей Supabase. Часть из них
+      # (например, log_min_messages) на новом проекте менять запрещено — это не ошибка
+      # бэкапа, поэтому роли применяются отдельно и без остановки на ошибках.
+      - name: Восстановить роли
+        run: psql --file backup/roles.sql --dbname "$RESTORE_DB_URL" 2>&1 | sed 's/^psql.*ERROR/::warning::&/'
+
+      # Схема и данные — строго одной транзакцией: при любой ошибке не меняется ничего.
       # Порядок и параметры — из инструкции Supabase «Restore to a new project»
-      - name: Восстановить
+      - name: Восстановить схему и данные
         run: |
           psql --single-transaction --variable ON_ERROR_STOP=1 \
-            --file backup/roles.sql \
             --file backup/schema.sql \
             --command 'SET session_replication_role = replica' \
             --file backup/data.sql \
