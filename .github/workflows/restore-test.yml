@@ -34,6 +34,9 @@ jobs:
             exit 1
           fi
 
+      # Нужен supabase/restore/after-restore.sql
+      - uses: actions/checkout@v7
+
       - name: Найти бэкап
         id: run
         # Ввод передаётся через переменную, а не подставляется в скрипт
@@ -74,6 +77,8 @@ jobs:
             --file backup/schema.sql \
             --command 'SET session_replication_role = replica' \
             --file backup/data.sql \
+            --command 'SET session_replication_role = origin' \
+            --file supabase/restore/after-restore.sql \
             --dbname "$RESTORE_DB_URL"
 
       - name: Посчитать восстановленные строки
@@ -84,4 +89,6 @@ jobs:
               (select count(*) from public.notes)           as notes,
               (select count(*) from public.checklist_items) as items,
               (select count(*) from public.labels)          as labels,
-              (select count(*) from public.note_members)    as members"
+              (select count(*) from public.note_members)    as members,
+              (select count(*) from pg_trigger
+                where tgname = 'on_auth_user_created')      as signup_trigger"
