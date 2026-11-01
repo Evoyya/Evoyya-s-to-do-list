@@ -89,7 +89,10 @@ export function BoardPage() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section aria-label={title}>
-      <h2 className="mb-3 text-xs font-medium tracking-wider text-text-muted uppercase">{title}</h2>
+      {/* На телефоне крупнее, чтобы не сливаться с названиями столбцов срочности */}
+      <h2 className="mb-3 text-base font-semibold tracking-wider text-text-muted uppercase md:text-xs md:font-medium">
+        {title}
+      </h2>
       {children}
     </section>
   )

@@ -146,9 +146,9 @@ export function UrgencyBoard({
         setOverride(null)
       }}
     >
-      {/* Телефон: группы строками сверху вниз, от «Критично» до «Без дедлайна».
+      {/* Телефон: группы строками сверху вниз, от «Критично» до «Без дедлайна», между ними линии.
           Ноутбук: четыре столбца рядом, между ними тонкие линии. */}
-      <div className="flex flex-col gap-6 md:grid md:grid-cols-4 md:gap-0 md:divide-x md:divide-border/60">
+      <div className="flex flex-col divide-y divide-border/60 md:grid md:grid-cols-4 md:divide-x md:divide-y-0">
         {URGENCIES.map((u) => (
           <Column
             key={u.value}
@@ -211,7 +211,8 @@ function Column({
   return (
     <section
       aria-label={label}
-      className="flex min-w-0 flex-col gap-3 md:px-3 md:first:pl-0 md:last:pr-0"
+      // Телефон: группы друг под другом, между ними тонкие линии; ПК: столбцы с линиями между ними
+      className="flex min-w-0 flex-col gap-3 py-4 first:pt-0 last:pb-0 md:px-3 md:py-0 md:first:pl-0 md:last:pr-0"
     >
       <h3 className="flex items-center gap-2 text-sm font-medium">
         <span
