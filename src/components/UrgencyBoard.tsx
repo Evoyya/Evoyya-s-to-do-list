@@ -62,11 +62,14 @@ export function UrgencyBoard({
   const byId = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes])
   const derived = useMemo(() => groupByUrgency(notes), [notes])
 
-  // Раскладка во время перетаскивания и сразу после него. Действует, пока не обновился
-  // список заметок, — иначе карточка на миг прыгала бы на старое место.
+  // Раскладка во время перетаскивания и сразу после него. Пока карточку тащат, действует
+  // всегда: доска могла перерисоваться (пришли данные с другого устройства), и без этого
+  // перенос в другой столбец терялся. После отпускания — пока не обновился список заметок,
+  // иначе карточка на миг прыгала бы на старое место.
   const [override, setOverride] = useState<{ columns: Columns; notes: Note[] } | null>(null)
-  const columns = override && override.notes === notes ? override.columns : derived
   const [activeId, setActiveId] = useState<string | null>(null)
+  const columns =
+    override && (activeId !== null || override.notes === notes) ? override.columns : derived
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),

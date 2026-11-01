@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { ColorDot } from '../components/ColorPicker'
 import { NoteCard } from '../components/NoteCard'
@@ -25,13 +25,20 @@ export function BoardPage() {
   const [params, setParams] = useSearchParams()
   const filter = myLabels.find((l) => l.id === params.get('label'))
   const setFilter = (id: string | null) => setParams(id ? { label: id } : {}, { replace: true })
-  const visible = filter
-    ? notes.filter((n) => labelsFor(n).labels.some((l) => l.id === filter.id))
-    : notes
+  const filterId = filter?.id
 
-  // ТР-1: постоянные — только в закрепе, временные — только ниже
-  const pinned = visible.filter((n) => n.kind === 'permanent')
-  const temporary = visible.filter((n) => n.kind === 'temporary')
+  // ТР-1: постоянные — только в закрепе, временные — только ниже.
+  // Списки пересчитываются только при изменении заметок или фильтра: доска
+  // перетаскивания опирается на то, что список задач не меняется без причины.
+  const { pinned, temporary } = useMemo(() => {
+    const visible = filterId
+      ? notes.filter((n) => labelsFor(n).labels.some((l) => l.id === filterId))
+      : notes
+    return {
+      pinned: visible.filter((n) => n.kind === 'permanent'),
+      temporary: visible.filter((n) => n.kind === 'temporary'),
+    }
+  }, [notes, filterId, labelsFor])
 
   return (
     // Доска шириной до 4 столбцов по центру экрана, как в Keep
