@@ -10,6 +10,7 @@ import { LabelChips, LabelPicker } from './LabelPicker'
 import { DEFAULT_URGENCY, type Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
 import { UrgencySelect } from './UrgencySelect'
+import { DeadlineInput } from './DeadlineInput'
 
 // Форма создания заметки: свёрнута в строку «Заметка…», раскрывается по нажатию
 export function NoteComposer() {
@@ -19,6 +20,7 @@ export function NoteComposer() {
   const [description, setDescription] = useState('')
   const [kind, setKind] = useState<NoteKind>('temporary')
   const [urgency, setUrgency] = useState<Urgency>(DEFAULT_URGENCY)
+  const [dueDate, setDueDate] = useState('')
   // null — список не добавлен; иначе черновики пунктов
   const [items, setItems] = useState<string[] | null>(null)
   // ТР-5: ярлыки новой заметки; основной — выбранный звёздочкой или первый по алфавиту
@@ -36,6 +38,7 @@ export function NoteComposer() {
     setDescription('')
     setKind('temporary')
     setUrgency(DEFAULT_URGENCY)
+    setDueDate('')
     setItems(null)
     setLabelIds([])
     setPrimaryId(null)
@@ -50,6 +53,8 @@ export function NoteComposer() {
       description: description.trim() || null,
       kind,
       urgency,
+      // Дедлайн бывает только у временной задачи
+      dueDate: kind === 'temporary' && dueDate ? dueDate : null,
       items: (items ?? []).map((i) => i.trim()).filter(Boolean),
       labelIds,
       primaryLabelId: primary && primary.id === primaryId ? primary.id : null,
@@ -129,6 +134,7 @@ export function NoteComposer() {
         <div className="flex flex-wrap items-center gap-2">
           <KindToggle value={kind} onChange={setKind} />
           {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
+          {kind === 'temporary' && <DeadlineInput value={dueDate} onChange={setDueDate} />}
           <button
             ref={labelsButtonRef}
             type="button"

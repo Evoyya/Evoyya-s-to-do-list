@@ -9,6 +9,7 @@ import { memberName } from '../lib/members'
 import type { Note } from '../lib/notes'
 import { Avatar } from './Avatar'
 import { Checkbox, doneLabel } from './Checkbox'
+import { formatDeadline } from './DeadlineInput'
 import { ArchiveIcon } from './icons'
 import { LabelChips } from './LabelPicker'
 
@@ -104,6 +105,10 @@ export function NoteCard({
       )}
       {doneCount > 0 && <p className="text-sm text-text-muted">{doneLabel(doneCount)}</p>}
       {view && <LabelChips labels={view.labels} />}
+      {/* ТР-2: дедлайн — в самом низу, под ярлыками */}
+      {note.kind === 'temporary' && note.due_date && (
+        <p className="text-sm text-text-muted">{formatDeadline(note.due_date)}</p>
+      )}
       {others.length > 0 && (
         <ul className="flex justify-end gap-1" aria-label="Участники">
           {others.map((m) => (

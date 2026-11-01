@@ -167,6 +167,7 @@ export type Database = {
           archived_at: string | null
           created_at: string
           description: string | null
+          due_date: string | null
           id: string
           kind: Database["public"]["Enums"]["note_kind"]
           owner_id: string
@@ -180,6 +181,7 @@ export type Database = {
           archived_at?: string | null
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["note_kind"]
           owner_id?: string
@@ -193,6 +195,7 @@ export type Database = {
           archived_at?: string | null
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["note_kind"]
           owner_id?: string

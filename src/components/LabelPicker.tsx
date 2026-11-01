@@ -156,4 +156,5 @@ export function LabelChips({ labels, onClick }: { labels: Label[]; onClick?: () 
   )
 }
 
-const CHIP = 'max-w-40 truncate rounded-full bg-text/10 px-2.5 py-0.5 text-xs text-text'
+// Тёмная плашка со светлым текстом читается на карточке любого цвета
+const CHIP = 'max-w-40 truncate rounded-full bg-black/45 px-2.5 py-0.5 text-xs text-[#e8eaed]'

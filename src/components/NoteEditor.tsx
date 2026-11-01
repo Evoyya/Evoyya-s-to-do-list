@@ -17,6 +17,7 @@ import { SharePanel } from './SharePanel'
 import type { Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
 import { UrgencySelect } from './UrgencySelect'
+import { DeadlineInput } from './DeadlineInput'
 
 // Окно редактирования. Как в Keep: закрытие (Esc, клик мимо, «Готово») сохраняет изменения.
 export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
@@ -28,6 +29,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   const [description, setDescription] = useState(note.description ?? '')
   const [kind, setKind] = useState<NoteKind>(note.kind)
   const [urgency, setUrgency] = useState<Urgency>(note.urgency)
+  const [dueDate, setDueDate] = useState(note.due_date ?? '')
   const [titleError, setTitleError] = useState(false)
 
   // ТР-5: ярлыки сохраняются сразу, окно перекрашивается под основной
@@ -73,6 +75,9 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
     if (desc !== initial.description) patch.description = desc
     if (kind !== initial.kind) patch.kind = kind
     if (urgency !== initial.urgency) patch.urgency = urgency
+    // У постоянной заметки дедлайна нет
+    const due = kind === 'temporary' && dueDate ? dueDate : null
+    if (due !== (initial.due_date ?? null)) patch.due_date = due
     return patch
   }
 
@@ -155,6 +160,7 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
           <div className="flex flex-wrap items-center gap-2">
             <KindToggle value={kind} onChange={setKind} />
             {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
+            {kind === 'temporary' && <DeadlineInput value={dueDate} onChange={setDueDate} />}
             {canLabel && (
               <button
                 ref={labelsButtonRef}

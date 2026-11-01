@@ -45,10 +45,10 @@ export async function fetchArchivedNotes(): Promise<Note[]> {
 }
 
 export async function insertNote(note: Note) {
-  const { id, title, description, kind, urgency, position } = note
+  const { id, title, description, kind, urgency, position, due_date } = note
   const { error } = await supabase
     .from('notes')
-    .insert({ id, title, description, kind, urgency, position })
+    .insert({ id, title, description, kind, urgency, position, due_date })
   if (error) throw error
 }
 

@@ -191,6 +191,9 @@ export function archiveToMarkdown(
       labels.length ? `Ярлыки: ${labels.map((l) => l.name).join(', ')}` : 'Без ярлыка',
       note.kind === 'temporary' ? `Срочность: ${urgency}` : 'Постоянная заметка',
     ]
+    if (note.kind === 'temporary' && note.due_date) {
+      meta.push(`Дедлайн: ${new Date(`${note.due_date}T00:00:00`).toLocaleDateString('ru')}`)
+    }
     lines.push(`## ${note.title}`, '')
     lines.push(meta.join(' · '))
     lines.push(

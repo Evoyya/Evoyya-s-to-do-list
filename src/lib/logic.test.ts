@@ -25,6 +25,7 @@ const note = (patch: Partial<Note>): Note => ({
   owner_id: 'me',
   title: 'Заметка',
   description: null,
+  due_date: null,
   kind: 'temporary',
   urgency: 'no_deadline',
   position: 0,
@@ -86,7 +87,12 @@ describe('ТР-10: статистика архива', () => {
   const labelsFor = (n: Note): LabelView => ({ labels: labelsOf[n.id] ?? [], missing: [] })
 
   const archived = [
-    note({ id: 'a', urgency: 'critical', archived_at: '2026-11-01T12:00:00Z' }),
+    note({
+      id: 'a',
+      urgency: 'critical',
+      due_date: '2026-11-05',
+      archived_at: '2026-11-01T12:00:00Z',
+    }),
     note({ id: 'b', urgency: 'critical', archived_at: '2026-11-03T10:00:00Z' }),
     note({ id: 'c', kind: 'permanent', archived_at: '2026-11-01T11:00:00Z' }),
   ]
@@ -128,7 +134,7 @@ describe('ТР-10: статистика архива', () => {
     const all: Period = { preset: 'all', from: '', to: '' }
     const md = archiveToMarkdown([archived[0]], all, items, labelsFor)
     expect(md).toContain('# Архив заметок за всё время')
-    expect(md).toContain('Ярлыки: ДЗ, Ученики · Срочность: Критично')
+    expect(md).toContain('Ярлыки: ДЗ, Ученики · Срочность: Критично · Дедлайн: 05.11.2026')
     // Невыполненные пункты — первыми, как в самой заметке
     expect(md.indexOf('- [ ] не сделано')).toBeLessThan(md.indexOf('- [x] сделано'))
   })

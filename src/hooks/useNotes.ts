@@ -36,6 +36,8 @@ export type NewNote = {
   description: string | null
   kind: NoteKind
   urgency: Urgency
+  // ТР-2: дедлайн временной задачи, «ГГГГ-ММ-ДД» или null
+  dueDate: string | null
   items: string[]
   labelIds: string[]
   primaryLabelId: string | null
@@ -101,6 +103,7 @@ export function useCreateNote() {
       description: input.description,
       kind: input.kind,
       urgency: input.urgency,
+      due_date: input.dueDate,
       // Новая заметка встаёт первой
       position: Math.min(0, ...notes.map((n) => n.position)) - 1,
       primary_label_id: input.primaryLabelId,
