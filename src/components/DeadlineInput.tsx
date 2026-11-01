@@ -8,27 +8,34 @@ export function DeadlineInput({
   onChange: (value: string) => void
 }) {
   return (
-    <label className="flex items-center gap-1.5 rounded-full bg-surface py-1 pr-1 pl-3 text-sm text-text-muted">
-      до
-      <input
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Дедлайн"
-        className="rounded-full bg-transparent px-1 text-base text-text [color-scheme:dark] outline-none"
-      />
-      {value && (
+    // div, а не label: на iPhone нажатие внутри label открывает выбор даты,
+    // и крестик не срабатывал
+    <div className="flex items-center rounded-full bg-surface py-0.5 pl-3 text-sm text-text-muted">
+      <label className="flex items-center gap-1.5 py-0.5">
+        до
+        <input
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label="Дедлайн"
+          className="rounded-full bg-transparent px-1 text-base text-text [color-scheme:dark] outline-none"
+        />
+      </label>
+      {value ? (
+        // Зона нажатия 40×40 — удобно попасть пальцем
         <button
           type="button"
           onClick={() => onChange('')}
           aria-label="Убрать дедлайн"
           title="Убрать дедлайн"
-          className="rounded-full px-1.5 text-text-muted hover:text-text"
+          className="ml-1 flex size-10 shrink-0 items-center justify-center rounded-full text-lg text-text-muted hover:bg-surface-raised hover:text-text active:bg-surface-raised"
         >
           ✕
         </button>
+      ) : (
+        <span className="w-3" />
       )}
-    </label>
+    </div>
   )
 }
 
