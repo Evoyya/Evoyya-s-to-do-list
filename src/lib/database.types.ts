@@ -55,6 +55,41 @@ export type Database = {
           },
         ]
       }
+      completed_items: {
+        Row: {
+          completed_at: string
+          completed_by: string | null
+          id: string
+          item_id: string | null
+          note_id: string
+          text: string
+        }
+        Insert: {
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          item_id?: string | null
+          note_id: string
+          text: string
+        }
+        Update: {
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          item_id?: string | null
+          note_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "completed_items_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       labels: {
         Row: {
           color: string

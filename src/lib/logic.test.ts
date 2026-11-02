@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { LabelView } from '../hooks/useLabels'
 import {
   archiveToMarkdown,
+  computeItemStats,
   computeStats,
   formatDuration,
   inPeriod,
   type Period,
 } from './archiveStats'
 import { makeItem, positionBetween } from './checklist'
+import type { CompletedItem } from './completedItems'
 import { normalizeHex, readableText } from './color'
 import { freeColor, labelProblem, orderLabels, PALETTE, type Label } from './labels'
 import type { Note } from './notes'
@@ -137,5 +139,49 @@ describe('ТР-10: статистика архива', () => {
     expect(md).toContain('Ярлыки: ДЗ, Ученики · Срочность: Критично · Дедлайн: 05.11.2026')
     // Невыполненные пункты — первыми, как в самой заметке
     expect(md.indexOf('- [ ] не сделано')).toBeLessThan(md.indexOf('- [x] сделано'))
+  })
+})
+
+describe('выполненные пункты постоянных заметок', () => {
+  const done = (id: string, text: string, at: string, noteId = 'shop'): CompletedItem => ({
+    id,
+    note_id: noteId,
+    item_id: null,
+    text,
+    completed_at: at,
+    completed_by: noteId === 'shop' ? 'partner' : null,
+    noteTitle: noteId === 'shop' ? 'Магазин (продукты)' : 'Аптека',
+  })
+  const items = [
+    done('1', 'Хлеб', '2026-11-01T10:00:00Z'),
+    done('2', 'хлеб ', '2026-11-02T10:00:00Z'),
+    done('3', 'Яйца', '2026-11-02T11:00:00Z'),
+    done('4', 'Пластырь', '2026-11-02T12:00:00Z', 'pharmacy'),
+  ]
+
+  it('считает по заметкам и находит, что зачёркивают чаще всего', () => {
+    const stats = computeItemStats(items)
+    expect(stats.total).toBe(4)
+    expect(stats.byNote).toEqual([
+      { title: 'Магазин (продукты)', count: 3 },
+      { title: 'Аптека', count: 1 },
+    ])
+    expect(stats.top[0]).toEqual({ text: 'Хлеб', count: 2 })
+  })
+
+  it('выгрузка: отдельный раздел, по заметкам, с тем, кто зачеркнул', () => {
+    const all: Period = { preset: 'all', from: '', to: '' }
+    const md = archiveToMarkdown(
+      [],
+      all,
+      new Map(),
+      () => ({ labels: [], missing: [] }),
+      items,
+      (id) => (id === 'partner' ? 'Девушка' : null),
+    )
+    expect(md).toContain('Выполненных пунктов из постоянных заметок: 4.')
+    expect(md).toContain('### Магазин (продукты)')
+    expect(md).toMatch(/- \[x\] Хлеб — .+ \(Девушка\)/)
+    expect(md).toMatch(/### Аптека\n\n- \[x\] Пластырь — [^(]+\n/)
   })
 })

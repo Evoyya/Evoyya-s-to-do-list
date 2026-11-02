@@ -1,5 +1,6 @@
 import type { LabelView } from '../hooks/useLabels'
 import type { ChecklistItem } from './checklist'
+import type { CompletedItem } from './completedItems'
 import type { Label } from './labels'
 import type { Note } from './notes'
 import { URGENCIES, type Urgency } from './urgency'
@@ -35,12 +36,15 @@ export function periodRange(period: Period): { from: Date | null; to: Date | nul
   return { from, to }
 }
 
-export function inPeriod(note: Note, period: Period) {
-  if (!note.archived_at) return false
-  const at = new Date(note.archived_at)
+// Попадает ли момент времени в период
+export function atInPeriod(iso: string, period: Period) {
+  const at = new Date(iso)
   const { from, to } = periodRange(period)
   return (!from || at >= from) && (!to || at <= to)
 }
+
+export const inPeriod = (note: Note, period: Period) =>
+  !!note.archived_at && atInPeriod(note.archived_at, period)
 
 export const periodLabel = (period: Period) =>
   ({
@@ -157,6 +161,34 @@ export function computeStats(notes: Note[], labelsFor: (note: Note) => LabelView
   }
 }
 
+// Выполненные пункты постоянных заметок: сколько в каждой заметке и что чаще всего
+export type ItemStats = {
+  total: number
+  byNote: { title: string; count: number }[]
+  top: { text: string; count: number }[]
+}
+
+export function computeItemStats(items: CompletedItem[], topSize = 5): ItemStats {
+  const byNote = new Map<string, { title: string; count: number }>()
+  // «Хлеб» и «хлеб » — один и тот же пункт
+  const byText = new Map<string, { text: string; count: number }>()
+  for (const item of items) {
+    const note = byNote.get(item.note_id) ?? { title: item.noteTitle, count: 0 }
+    note.count++
+    byNote.set(item.note_id, note)
+    const key = item.text.trim().toLocaleLowerCase('ru')
+    const entry = byText.get(key) ?? { text: item.text.trim(), count: 0 }
+    entry.count++
+    byText.set(key, entry)
+  }
+  const byCount = <T extends { count: number }>(a: T, b: T) => b.count - a.count
+  return {
+    total: items.length,
+    byNote: [...byNote.values()].sort(byCount),
+    top: [...byText.values()].sort(byCount).slice(0, topSize),
+  }
+}
+
 // ---------------------------------------------------------------
 // Выгрузка в Markdown — удобно передать нейросети
 // ---------------------------------------------------------------
@@ -175,11 +207,15 @@ export function archiveToMarkdown(
   period: Period,
   itemsByNote: Map<string, ChecklistItem[]>,
   labelsFor: (note: Note) => LabelView,
+  // Выполненные пункты постоянных заметок за тот же период и кто их отметил
+  completed: CompletedItem[] = [],
+  nameOf: (userId: string | null) => string | null = () => null,
 ) {
   const lines = [
     `# Архив заметок ${periodLabel(period)}`,
     '',
-    `Всего заметок: ${notes.length}.`,
+    `Всего заметок: ${notes.length}.` +
+      (completed.length ? ` Выполненных пунктов из постоянных заметок: ${completed.length}.` : ''),
     '',
   ]
   // Старые сверху: так легче читать как историю
@@ -209,6 +245,24 @@ export function archiveToMarkdown(
       }
     }
     lines.push('')
+  }
+
+  if (completed.length > 0) {
+    lines.push('## Выполненные пункты постоянных заметок', '')
+    // По заметкам, внутри — по времени, старые сверху
+    const groups = new Map<string, CompletedItem[]>()
+    const byTime = [...completed].sort((a, b) => a.completed_at.localeCompare(b.completed_at))
+    for (const item of byTime) {
+      groups.set(item.noteTitle, [...(groups.get(item.noteTitle) ?? []), item])
+    }
+    for (const [title, items] of groups) {
+      lines.push(`### ${title}`, '')
+      for (const item of items) {
+        const who = nameOf(item.completed_by)
+        lines.push(`- [x] ${item.text} — ${dateTime(item.completed_at)}${who ? ` (${who})` : ''}`)
+      }
+      lines.push('')
+    }
   }
   return lines.join('\n')
 }

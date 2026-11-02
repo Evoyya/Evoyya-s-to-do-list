@@ -1,10 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { ColorDot } from '../components/ColorPicker'
 import { PeriodPicker } from '../components/PeriodPicker'
+import { useCompletedItems } from '../hooks/useCompletedItems'
 import { useLabelsFor } from '../hooks/useLabels'
 import { useMembersByNote } from '../hooks/useMembers'
 import { useArchivedNotes } from '../hooks/useNotes'
 import {
+  atInPeriod,
+  computeItemStats,
   computeStats,
   defaultPeriod,
   formatDuration,
@@ -40,6 +43,23 @@ export function StatsPage() {
     [archived, period, scope, membersByNote],
   )
   const stats = useMemo(() => computeStats(notes, labelsFor), [notes, labelsFor])
+
+  // Выполненные пункты постоянных заметок (покупки и т. п.) за тот же период
+  const { data: completed = [] } = useCompletedItems()
+  const itemStats = useMemo(
+    () =>
+      computeItemStats(
+        completed.filter((item) => {
+          if (!atInPeriod(item.completed_at, period)) return false
+          if (scope === 'all') return true
+          const shared = (membersByNote.get(item.note_id)?.length ?? 1) > 1
+          return scope === 'shared' ? shared : !shared
+        }),
+      ),
+    [completed, period, scope, membersByNote],
+  )
+  const maxItemNote = Math.max(1, ...itemStats.byNote.map((r) => r.count))
+  const maxItemTop = Math.max(1, ...itemStats.top.map((r) => r.count))
   const maxLabel = Math.max(1, ...stats.byLabel.map((r) => r.count))
   const maxUrgency = Math.max(1, ...stats.byUrgency.map((r) => r.count))
   const maxWeek = Math.max(1, ...stats.byWeek.map((r) => r.count))
@@ -77,17 +97,49 @@ export function StatsPage() {
 
       {!isPending && !error && (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Tile value={String(stats.total)} label={`в архиве ${periodLabel(period)}`} />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Tile value={String(stats.total)} label={`заметок в архиве ${periodLabel(period)}`} />
             <Tile
               value={stats.avgMs === null ? '—' : formatDuration(stats.avgMs)}
               label="в среднем от создания до архива"
             />
             <Tile value={`${temporaryCount} / ${stats.permanent}`} label="временных / постоянных" />
+            <Tile value={String(itemStats.total)} label="пунктов выполнено в постоянных заметках" />
           </div>
 
+          {itemStats.total > 0 && (
+            <Card
+              title="Пункты из постоянных заметок"
+              note="Зачёркнутые пункты списков вроде «Магазина»: каждый раз, когда пункт зачёркивают, он попадает в архив."
+            >
+              {itemStats.byNote.map((row) => (
+                <Bar
+                  key={row.title}
+                  name={row.title}
+                  color="#8ab4f8"
+                  count={row.count}
+                  max={maxItemNote}
+                />
+              ))}
+              {itemStats.top.length > 0 && (
+                <>
+                  <h3 className="pt-2 text-xs font-medium text-text-muted">Чаще всего</h3>
+                  {itemStats.top.map((row) => (
+                    <Bar
+                      key={row.text}
+                      name={row.text}
+                      color="#9aa0a6"
+                      count={row.count}
+                      max={maxItemTop}
+                    />
+                  ))}
+                </>
+              )}
+            </Card>
+          )}
+
           {stats.total === 0 ? (
-            <p className="text-sm text-text-muted">За этот период в архиве ничего нет.</p>
+            <p className="text-sm text-text-muted">За этот период заметок в архиве нет.</p>
           ) : (
             <>
               <Card

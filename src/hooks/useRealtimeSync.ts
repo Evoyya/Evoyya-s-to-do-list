@@ -3,18 +3,21 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ITEMS_KEY } from './useChecklist'
+import { COMPLETED_KEY } from './useCompletedItems'
 import { LABELS_KEY, NOTE_LABELS_KEY } from './useLabels'
 import { MEMBERS_KEY } from './useMembers'
 
 // Какие данные перезагрузить, когда в таблице что-то изменилось.
 // ['notes'] — и доска, и архив (у архива ключ начинается так же).
 const KEYS_BY_TABLE: Record<string, QueryKey[]> = {
-  notes: [['notes']],
+  // Журнал показывает название заметки — переименование тоже его обновляет
+  notes: [['notes'], COMPLETED_KEY],
   checklist_items: [ITEMS_KEY],
+  completed_items: [COMPLETED_KEY],
   labels: [LABELS_KEY],
   note_labels: [NOTE_LABELS_KEY],
   // Поделились заметкой или закрыли доступ — меняется всё, что видно
-  note_members: [['notes'], MEMBERS_KEY, ITEMS_KEY, LABELS_KEY, NOTE_LABELS_KEY],
+  note_members: [['notes'], MEMBERS_KEY, ITEMS_KEY, LABELS_KEY, NOTE_LABELS_KEY, COMPLETED_KEY],
 }
 
 // Сколько ждать, прежде чем показать «Нет связи»: короткие обрывы не в счёт

@@ -3,25 +3,43 @@ import { useItemsByNote } from '../hooks/useChecklist'
 import { useLabelsFor } from '../hooks/useLabels'
 import {
   archiveToMarkdown,
+  atInPeriod,
   defaultPeriod,
   exportFileName,
   inPeriod,
   type Period,
 } from '../lib/archiveStats'
+import type { CompletedItem } from '../lib/completedItems'
 import type { Note } from '../lib/notes'
+import { useCompletedByName } from './CompletedItemsList'
 import { PeriodPicker } from './PeriodPicker'
 import { useToast } from './Toast'
 
 // ТР-10: выгрузка архива за период в Markdown — например, чтобы обсудить с нейросетью.
 // Файл собирается прямо в браузере, сервер не нужен.
-export function ExportPanel({ archived, onClose }: { archived: Note[]; onClose: () => void }) {
+export function ExportPanel({
+  archived,
+  completed,
+  onClose,
+}: {
+  archived: Note[]
+  // Выполненные пункты постоянных заметок — тоже попадают в выгрузку
+  completed: CompletedItem[]
+  onClose: () => void
+}) {
+  const nameOf = useCompletedByName()
   const itemsByNote = useItemsByNote()
   const labelsFor = useLabelsFor()
   const showToast = useToast()
   const [period, setPeriod] = useState<Period>(defaultPeriod)
 
   const notes = useMemo(() => archived.filter((n) => inPeriod(n, period)), [archived, period])
-  const markdown = () => archiveToMarkdown(notes, period, itemsByNote, labelsFor)
+  const items = useMemo(
+    () => completed.filter((i) => atInPeriod(i.completed_at, period)),
+    [completed, period],
+  )
+  const nothing = notes.length === 0 && items.length === 0
+  const markdown = () => archiveToMarkdown(notes, period, itemsByNote, labelsFor, items, nameOf)
   const file = () =>
     new File([markdown()], exportFileName(period), { type: 'text/markdown;charset=utf-8' })
 
@@ -77,28 +95,19 @@ export function ExportPanel({ archived, onClose }: { archived: Note[]; onClose: 
       </div>
       <PeriodPicker value={period} onChange={setPeriod} />
       <p className="text-sm text-text-muted">
-        Заметок за период: {notes.length}. В файле — название, описание, пункты списка, ярлыки,
-        срочность и даты.
+        Заметок за период: {notes.length}
+        {items.length > 0 && `, выполненных пунктов из постоянных заметок: ${items.length}`}. В
+        файле — название, описание, пункты списка, ярлыки, срочность и даты.
       </p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={download} disabled={notes.length === 0} className={button}>
+        <button type="button" onClick={download} disabled={nothing} className={button}>
           Скачать .md
         </button>
-        <button
-          type="button"
-          onClick={() => void copy()}
-          disabled={notes.length === 0}
-          className={button}
-        >
+        <button type="button" onClick={() => void copy()} disabled={nothing} className={button}>
           Скопировать
         </button>
         {canShare && (
-          <button
-            type="button"
-            onClick={() => void share()}
-            disabled={notes.length === 0}
-            className={button}
-          >
+          <button type="button" onClick={() => void share()} disabled={nothing} className={button}>
             Поделиться
           </button>
         )}

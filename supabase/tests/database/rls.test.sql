@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(30);
+select plan(35);
 
 -- ------------------------------------------------------------
 -- Тестовые данные: пользователь A (создатель) и B (девушка)
@@ -194,6 +194,43 @@ select is(
 );
 
 -- ------------------------------------------------------------
+-- Журнал выполненных пунктов постоянных заметок (архив покупок)
+-- ------------------------------------------------------------
+
+select is(
+  (select count(*)::int from public.completed_items
+   where note_id = '10000000-0000-0000-0000-000000000002'
+     and completed_by = '00000000-0000-0000-0000-00000000000b'),
+  1, 'Пункт постоянной заметки, зачёркнутый B, попал в архив с отметкой, кто зачеркнул'
+);
+
+insert into public.checklist_items (id, note_id, text)
+  values ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Отчёт');
+update public.checklist_items set is_done = true where id = '30000000-0000-0000-0000-000000000003';
+
+select is(
+  (select count(*)::int from public.completed_items
+   where note_id = '10000000-0000-0000-0000-000000000001'),
+  0, 'Пункты временной задачи в журнал не попадают (они уходят в архив вместе с задачей)'
+);
+
+update public.checklist_items set is_done = false where id = '30000000-0000-0000-0000-000000000001';
+
+select is(
+  (select count(*)::int from public.completed_items
+   where item_id = '30000000-0000-0000-0000-000000000001'),
+  0, 'Отметка, снятая в течение 5 минут, считается ошибкой и убирается из архива'
+);
+
+select throws_ok(
+  $$ insert into public.completed_items (note_id, text)
+     values ('10000000-0000-0000-0000-000000000002', 'подделка') $$,
+  '42501', null, 'Записи в журнал добавляет только база, не приложение'
+);
+
+update public.checklist_items set is_done = true where id = '30000000-0000-0000-0000-000000000002';
+
+-- ------------------------------------------------------------
 -- Этап 9: у временной задачи у каждого своё место (столбец, порядок, архив)
 -- ------------------------------------------------------------
 
@@ -262,6 +299,11 @@ delete from public.note_members
 select is(
   (select count(*)::int from public.notes),
   0, 'ТР-9: B может выйти из общей заметки'
+);
+
+select is(
+  (select count(*)::int from public.completed_items),
+  0, 'Вышедший из общей заметки не видит её журнал выполненных пунктов'
 );
 
 -- ------------------------------------------------------------
