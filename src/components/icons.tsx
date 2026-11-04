@@ -62,10 +62,20 @@ export function LogoutIcon() {
   )
 }
 
+// Связанные задачи (ТР-11): два круга и палка между ними
 export function LinkIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-[18px]" fill="currentColor" aria-hidden="true">
-      <path d="M17 7h-4v2h4c1.65 0 3 1.35 3 3s-1.35 3-3 3h-4v2h4c2.76 0 5-2.24 5-5s-2.24-5-5-5Zm-6 8H7c-1.65 0-3-1.35-3-3s1.35-3 3-3h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-2Zm-3-4h8v2H8v-2Z" />
+    <svg
+      viewBox="0 0 24 24"
+      className="size-[18px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <circle cx="5.5" cy="12" r="3.5" />
+      <path d="M9 12h6" />
+      <circle cx="18.5" cy="12" r="3.5" />
     </svg>
   )
 }
