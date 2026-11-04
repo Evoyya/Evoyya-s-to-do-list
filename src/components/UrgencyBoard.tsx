@@ -19,21 +19,21 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useMemo, useState, type ReactNode } from 'react'
-import { useUpdateNote } from '../hooks/useNotes'
-import { positionBetween, type ChecklistItem } from '../lib/checklist'
+import { usePlaces } from '../hooks/useNotes'
+import type { ChecklistItem } from '../lib/checklist'
 import type { LabelView } from '../hooks/useLabels'
+import { blockMates, columnOrder, planDrop, runs, type Columns } from '../lib/links'
 import type { Note } from '../lib/notes'
 import { URGENCIES, type Urgency } from '../lib/urgency'
+import { BlockFrame } from './BlockFrame'
 import { NoteCard } from './NoteCard'
-
-type Columns = Record<Urgency, string[]>
 
 const NO_ITEMS: ChecklistItem[] = []
 
+// Столбцы в том виде, как они на экране: задачи блока подряд (ТР-11)
 function groupByUrgency(notes: Note[]): Columns {
-  const columns: Columns = { critical: [], urgent: [], not_urgent: [], no_deadline: [] }
-  // notes уже отсортированы по position
-  for (const note of notes) columns[note.urgency].push(note.id)
+  const columns = {} as Columns
+  for (const u of URGENCIES) columns[u.value] = columnOrder(notes, u.value)
   return columns
 }
 
@@ -47,18 +47,21 @@ function findColumn(id: string, columns: Columns): Urgency | undefined {
 // ТР-2: временные задачи в четырёх столбцах срочности с перетаскиванием
 export function UrgencyBoard({
   notes,
+  allNotes,
   itemsByNote,
   labelsFor,
   onOpen,
   onArchive,
 }: {
   notes: Note[]
+  // Все задачи доски без фильтра: блок переносится целиком, даже если часть скрыта фильтром
+  allNotes: Note[]
   itemsByNote: Map<string, ChecklistItem[]>
   labelsFor: (note: Note) => LabelView
   onOpen: (id: string) => void
   onArchive: (note: Note) => void
 }) {
-  const updateNote = useUpdateNote()
+  const places = usePlaces()
   const byId = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes])
   const derived = useMemo(() => groupByUrgency(notes), [notes])
 
@@ -115,24 +118,19 @@ export function UrgencyBoard({
       list = arrayMove(list, list.indexOf(activeKey), list.indexOf(overKey))
     }
 
-    const note = byId.get(activeKey)
-    if (!note) return
-    const unchanged = note.urgency === column && list.join() === derived[column].join()
-    if (unchanged) {
+    // ТР-11: задача блока за его пределами тащит за собой весь блок
+    const plan = planDrop(allNotes, { ...columns, [column]: list }, activeKey)
+    if (!plan) {
       setOverride(null)
       return
     }
-
-    const index = list.indexOf(activeKey)
-    const position = positionBetween(
-      byId.get(list[index - 1])?.position,
-      byId.get(list[index + 1])?.position,
-    )
-    setOverride({ columns: { ...columns, [column]: list }, notes })
-    updateNote.mutate({ note, patch: { urgency: column, position } })
+    setOverride({ columns: plan.columns, notes })
+    places.mutate(plan.places)
   }
 
+  const groupOf = (id: string) => byId.get(id)?.link_group ?? null
   const activeNote = activeId ? byId.get(activeId) : undefined
+  const activeMates = activeNote ? blockMates(allNotes, activeNote.link_group).length : 0
 
   return (
     <DndContext
@@ -158,19 +156,28 @@ export function UrgencyBoard({
             count={columns[u.value].length}
           >
             <SortableContext items={columns[u.value]} strategy={verticalListSortingStrategy}>
-              {columns[u.value].map((id) => {
-                const note = byId.get(id)
-                if (!note) return null
+              {runs(columns[u.value], groupOf).map((unit) => {
+                const cards = unit.ids.map((id) => {
+                  const note = byId.get(id)
+                  if (!note) return null
+                  return (
+                    <SortableNote key={id} id={id}>
+                      <NoteCard
+                        note={note}
+                        items={itemsByNote.get(id) ?? NO_ITEMS}
+                        view={labelsFor(note)}
+                        onOpen={() => onOpen(id)}
+                        onArchive={() => onArchive(note)}
+                      />
+                    </SortableNote>
+                  )
+                })
+                if (!unit.group) return cards
+                // ТР-11: связанные задачи друг под другом в общей рамке
                 return (
-                  <SortableNote key={id} id={id}>
-                    <NoteCard
-                      note={note}
-                      items={itemsByNote.get(id) ?? NO_ITEMS}
-                      view={labelsFor(note)}
-                      onOpen={() => onOpen(id)}
-                      onArchive={() => onArchive(note)}
-                    />
-                  </SortableNote>
+                  <li key={`block:${unit.ids[0]}`}>
+                    <BlockFrame>{cards}</BlockFrame>
+                  </li>
                 )
               })}
             </SortableContext>
@@ -180,12 +187,18 @@ export function UrgencyBoard({
 
       <DragOverlay>
         {activeNote && (
-          <div className="rotate-2 shadow-2xl">
+          <div className="relative rotate-2 shadow-2xl">
             <NoteCard
               note={activeNote}
               items={itemsByNote.get(activeNote.id) ?? NO_ITEMS}
               view={labelsFor(activeNote)}
             />
+            {activeMates > 1 && (
+              // Вне блока карточка тащит за собой остальные задачи блока
+              <span className="absolute -top-2 -right-2 rounded-full border-2 border-text bg-surface px-2 py-0.5 text-xs font-medium text-text">
+                +{activeMates - 1}
+              </span>
+            )}
           </div>
         )}
       </DragOverlay>

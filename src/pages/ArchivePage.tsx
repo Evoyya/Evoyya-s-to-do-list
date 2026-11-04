@@ -9,7 +9,9 @@ import { useAuth } from '../auth/AuthProvider'
 import { useCompletedItems } from '../hooks/useCompletedItems'
 import { useLabelsFor } from '../hooks/useLabels'
 import { useMembersByNote } from '../hooks/useMembers'
-import { useArchive, useArchivedNotes, useDeleteArchivedNote } from '../hooks/useNotes'
+import { useArchive, useArchivedNotes, useDeleteArchivedNote, useNotes } from '../hooks/useNotes'
+import { BlockFrame } from '../components/BlockFrame'
+import { toUnits } from '../lib/links'
 import type { ChecklistItem } from '../lib/checklist'
 import type { Note } from '../lib/notes'
 
@@ -21,6 +23,8 @@ export function ArchivePage() {
   const itemsByNote = useItemsByNote()
   const labelsFor = useLabelsFor()
   const { restore } = useArchive()
+  // Доска нужна, чтобы восстановленная задача вернулась в свой блок (ТР-11)
+  const { data: board = [] } = useNotes()
   const deleteNote = useDeleteArchivedNote()
   // Выполненные пункты постоянных заметок — во второй вкладке архива
   const { data: completed = [] } = useCompletedItems()
@@ -58,6 +62,7 @@ export function ArchivePage() {
     ? completed.filter((i) => `${i.text}\n${i.noteTitle}`.toLocaleLowerCase('ru').includes(needle))
     : completed
   const empty = notes.length === 0 && completed.length === 0
+  const byId = new Map(notes.map((n) => [n.id, n]))
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
@@ -85,7 +90,12 @@ export function ArchivePage() {
         )}
       </div>
       {exporting && (
-        <ExportPanel archived={notes} completed={completed} onClose={() => setExporting(false)} />
+        <ExportPanel
+          archived={notes}
+          board={board}
+          completed={completed}
+          onClose={() => setExporting(false)}
+        />
       )}
 
       {completed.length > 0 && (
@@ -124,27 +134,39 @@ export function ArchivePage() {
       {tab === 'items' && <CompletedItemsList items={foundItems} />}
 
       {/* Колонки, а не сетка: карточки разной высоты идут друг под другом без пустот, как в Keep */}
+      {/* ТР-11: связанные задачи — в общей рамке, на месте последней заархивированной */}
       <ul hidden={tab !== 'notes'} className="columns-2 gap-2 sm:columns-[13rem] sm:gap-3">
-        {found.map((note) => (
-          <li key={note.id} className="mb-2 break-inside-avoid sm:mb-3">
-            <NoteCard
-              compact
-              note={note}
-              items={itemsByNote.get(note.id) ?? NO_ITEMS}
-              view={labelsFor(note)}
-              actions={
-                <>
-                  <IconButton label="Восстановить" onClick={() => restore(note)}>
-                    <UnarchiveIcon />
-                  </IconButton>
-                  <IconButton label="Удалить навсегда" onClick={() => setDeleting(note)}>
-                    <TrashIcon />
-                  </IconButton>
-                </>
-              }
-            />
-          </li>
-        ))}
+        {toUnits(found).map((unit) => {
+          const cards = unit.ids.map((id) => {
+            const note = byId.get(id)!
+            return (
+              <li key={id} className={unit.group ? undefined : 'mb-2 break-inside-avoid sm:mb-3'}>
+                <NoteCard
+                  compact
+                  note={note}
+                  items={itemsByNote.get(id) ?? NO_ITEMS}
+                  view={labelsFor(note)}
+                  actions={
+                    <>
+                      <IconButton label="Восстановить" onClick={() => restore(note, board)}>
+                        <UnarchiveIcon />
+                      </IconButton>
+                      <IconButton label="Удалить навсегда" onClick={() => setDeleting(note)}>
+                        <TrashIcon />
+                      </IconButton>
+                    </>
+                  }
+                />
+              </li>
+            )
+          })
+          if (!unit.group) return cards
+          return (
+            <li key={`block:${unit.ids[0]}`} className="mb-2 break-inside-avoid sm:mb-3">
+              <BlockFrame>{cards}</BlockFrame>
+            </li>
+          )
+        })}
       </ul>
 
       {deleting && (

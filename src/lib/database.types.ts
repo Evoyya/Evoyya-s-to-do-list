@@ -156,6 +156,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           created_at: string
+          link_group: string | null
           note_id: string
           position: number
           role: Database["public"]["Enums"]["member_role"]
@@ -165,6 +166,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           created_at?: string
+          link_group?: string | null
           note_id: string
           position?: number
           role?: Database["public"]["Enums"]["member_role"]
@@ -174,6 +176,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           created_at?: string
+          link_group?: string | null
           note_id?: string
           position?: number
           role?: Database["public"]["Enums"]["member_role"]
@@ -289,6 +292,10 @@ export type Database = {
       share_note: {
         Args: { p_email: string; p_note_id: string }
         Returns: string
+      }
+      update_my_places: {
+        Args: { p_places: Json }
+        Returns: undefined
       }
     }
     Enums: {

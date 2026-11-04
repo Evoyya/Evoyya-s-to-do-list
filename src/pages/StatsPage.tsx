@@ -4,10 +4,11 @@ import { PeriodPicker } from '../components/PeriodPicker'
 import { useCompletedItems } from '../hooks/useCompletedItems'
 import { useLabelsFor } from '../hooks/useLabels'
 import { useMembersByNote } from '../hooks/useMembers'
-import { useArchivedNotes } from '../hooks/useNotes'
+import { useArchivedNotes, useNotes } from '../hooks/useNotes'
 import {
   atInPeriod,
   computeItemStats,
+  computeLinkStats,
   computeStats,
   defaultPeriod,
   formatDuration,
@@ -43,6 +44,12 @@ export function StatsPage() {
     [archived, period, scope, membersByNote],
   )
   const stats = useMemo(() => computeStats(notes, labelsFor), [notes, labelsFor])
+  // ТР-11: связанные задачи; в остальных разделах каждая задача блока считается отдельно
+  const { data: board = [] } = useNotes()
+  const linkStats = useMemo(
+    () => computeLinkStats(notes, archived, board),
+    [notes, archived, board],
+  )
 
   // Выполненные пункты постоянных заметок (покупки и т. п.) за тот же период
   const { data: completed = [] } = useCompletedItems()
@@ -172,6 +179,35 @@ export function StatsPage() {
                   />
                 ))}
               </Card>
+
+              {linkStats.linked > 0 && (
+                <Card
+                  title="Связанные задачи"
+                  note="Блок считается закрытым, когда все его задачи в архиве; он попадает в период, где закрыта последняя. В остальных разделах каждая задача блока учитывается отдельно."
+                >
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <Tile
+                      value={`${linkStats.linked} / ${linkStats.single}`}
+                      label="задач в блоках / одиночных"
+                    />
+                    <Tile value={String(linkStats.closedBlocks)} label="блоков закрыто целиком" />
+                    <Tile
+                      value={
+                        linkStats.avgBlockSize === null
+                          ? '—'
+                          : linkStats.avgBlockSize.toFixed(1).replace('.', ',').replace(',0', '')
+                      }
+                      label="задач в среднем в закрытом блоке"
+                    />
+                    <Tile
+                      value={
+                        linkStats.avgBlockMs === null ? '—' : formatDuration(linkStats.avgBlockMs)
+                      }
+                      label="от первой задачи блока до архива последней"
+                    />
+                  </div>
+                </Card>
+              )}
 
               <Card title="Закрыто по неделям">
                 <div className="flex h-32 items-end gap-1.5" role="list">

@@ -12,12 +12,15 @@ import {
   fetchArchivedNotes,
   fetchNotes,
   insertNote,
+  updateMyPlaces,
   updateNote,
   updateSharedNote,
   type Note,
   type NoteKind,
   type NotePatch,
+  type Place,
 } from '../lib/notes'
+import { applyPlaces, labelTargets, missingLabelRows, planLink, planRestore } from '../lib/links'
 import type { Urgency } from '../lib/urgency'
 import { insertNoteLabels, type NoteLabel } from '../lib/labels'
 import { useToast } from '../components/Toast'
@@ -41,6 +44,8 @@ export type NewNote = {
   items: string[]
   labelIds: string[]
   primaryLabelId: string | null
+  // ТР-11: задачи того же столбца, с которыми связать новую
+  linkIds: string[]
 }
 
 // Заметка и её пункты создаются вместе: сначала заметка, потом пункты (им нужна заметка)
@@ -54,10 +59,12 @@ export function useCreateNote() {
       note,
       items,
       labels,
+      places,
     }: {
       note: Note
       items: ChecklistItem[]
       labels: NoteLabel[]
+      places: Place[]
     }) => {
       // Основной ярлык ссылается на связь заметки с ярлыком, поэтому ставится последним
       await insertNote(note)
@@ -66,15 +73,19 @@ export function useCreateNote() {
       if (note.primary_label_id) {
         await updateSharedNote(note.id, { primary_label_id: note.primary_label_id })
       }
+      // Блок связанных задач — когда у заметки уже есть своё место
+      await updateMyPlaces(places)
     },
-    onMutate: async ({ note, items, labels }) => {
+    onMutate: async ({ note, items, labels, places }) => {
       await queryClient.cancelQueries({ queryKey: NOTES_KEY })
       await queryClient.cancelQueries({ queryKey: ITEMS_KEY })
       await queryClient.cancelQueries({ queryKey: NOTE_LABELS_KEY })
       const previousNotes = queryClient.getQueryData<Note[]>(NOTES_KEY)
       const previousItems = queryClient.getQueryData<ChecklistItem[]>(ITEMS_KEY)
       const previousLabels = queryClient.getQueryData<NoteLabel[]>(NOTE_LABELS_KEY)
-      queryClient.setQueryData<Note[]>(NOTES_KEY, (old = []) => [...old, note].sort(byPosition))
+      queryClient.setQueryData<Note[]>(NOTES_KEY, (old = []) =>
+        applyPlaces([...old, note], places).sort(byPosition),
+      )
       queryClient.setQueryData<ChecklistItem[]>(ITEMS_KEY, (old = []) =>
         [...old, ...items].sort(byItemPosition),
       )
@@ -108,12 +119,34 @@ export function useCreateNote() {
       position: Math.min(0, ...notes.map((n) => n.position)) - 1,
       primary_label_id: input.primaryLabelId,
       archived_at: null,
+      link_group: null,
       created_at: now,
       updated_at: now,
     }
+    // ТР-11: новая задача встаёт в конец блока, задачи блока собираются рядом
+    const places =
+      input.kind === 'temporary' && input.linkIds.length > 0
+        ? planLink(
+            [...notes, note],
+            note.id,
+            input.linkIds,
+            note.urgency,
+            () => crypto.randomUUID(),
+            true,
+          )
+        : []
+    const own = places.find((p) => p.note_id === note.id)
+    if (own?.position !== undefined) note.position = own.position
     const items = input.items.map((text, i) => makeItem(note.id, text, i))
     const labels = input.labelIds.map((label_id) => ({ note_id: note.id, label_id }))
-    mutation.mutate({ note, items, labels })
+    // ТР-11: ярлыки новой задачи получают и остальные свои задачи её блока
+    if (places.length > 0) {
+      const linked = applyPlaces([...notes, note], places)
+      const mates = labelTargets(linked, note.id, note.owner_id).filter((id) => id !== note.id)
+      const rows = queryClient.getQueryData<NoteLabel[]>(NOTE_LABELS_KEY) ?? []
+      labels.push(...missingLabelRows(mates, input.labelIds, rows))
+    }
+    mutation.mutate({ note, items, labels, places })
   }
 }
 
@@ -127,6 +160,13 @@ export function useUpdateNote() {
         // Заархивированная заметка сразу уходит с доски
         .filter((n) => !n.archived_at)
         .sort(byPosition),
+  )
+}
+
+// ТР-11: места нескольких задач сразу — перенос блока, связывание, отвязывание
+export function usePlaces() {
+  return useOptimisticList<Note, Place[]>(NOTES_KEY, updateMyPlaces, (notes, places) =>
+    applyPlaces(notes, places).sort(byPosition),
   )
 }
 
@@ -153,13 +193,24 @@ export function useArchive() {
     // По очереди: «Отменить» не должен обогнать на сервере само действие
     scope: { id: 'archive' },
     // note — заметка до изменения: по ней видно, где хранится её место
-    mutationFn: ({ before, patch }: { note: Note; before: Note; patch: NotePatch }) =>
-      updateNote(before, patch),
-    onMutate: async ({ note }) => {
+    mutationFn: async ({
+      before,
+      patch,
+      others = [],
+    }: {
+      note: Note
+      before: Note
+      patch: NotePatch
+      others?: Place[]
+    }) => {
+      await updateNote(before, patch)
+      await updateMyPlaces(others)
+    },
+    onMutate: async ({ note, others = [] }) => {
       await queryClient.cancelQueries({ queryKey: NOTES_KEY })
       const previousBoard = queryClient.getQueryData<Note[]>(NOTES_KEY)
       const previousArchive = queryClient.getQueryData<Note[]>(ARCHIVED_KEY)
-      const without = (old: Note[] = []) => old.filter((n) => n.id !== note.id)
+      const without = (old: Note[] = []) => applyPlaces(old, others).filter((n) => n.id !== note.id)
       if (note.archived_at) {
         queryClient.setQueryData<Note[]>(NOTES_KEY, without)
         queryClient.setQueryData<Note[]>(ARCHIVED_KEY, (old) => [note, ...without(old)])
@@ -178,9 +229,14 @@ export function useArchive() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: NOTES_KEY }),
   })
 
-  const setArchived = (note: Note, archived: boolean, extra: NotePatch = {}) => {
+  const setArchived = (
+    note: Note,
+    archived: boolean,
+    extra: NotePatch = {},
+    others: Place[] = [],
+  ) => {
     const patch = { ...extra, archived_at: archived ? new Date().toISOString() : null }
-    mutation.mutate({ note: { ...note, ...patch }, before: note, patch })
+    mutation.mutate({ note: { ...note, ...patch }, before: note, patch, others })
     return { ...note, ...patch }
   }
 
@@ -193,8 +249,14 @@ export function useArchive() {
     })
   }
 
-  const restore = (note: Note) => {
-    const restored = setArchived(note, false)
+  // ТР-11: восстановленная задача возвращается в конец своего блока
+  // board — задачи доски; если не переданы, берутся из кэша
+  const restore = (note: Note, board?: Note[]) => {
+    const { patch, others } = planRestore(
+      board ?? queryClient.getQueryData<Note[]>(NOTES_KEY) ?? [],
+      note,
+    )
+    const restored = setArchived(note, false, patch, others)
     showToast('Заметка восстановлена', {
       label: 'Отменить',
       onClick: () => setArchived(restored, true),

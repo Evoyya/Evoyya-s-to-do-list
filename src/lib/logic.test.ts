@@ -33,6 +33,7 @@ const note = (patch: Partial<Note>): Note => ({
   position: 0,
   primary_label_id: null,
   archived_at: null,
+  link_group: null,
   created_at: '2026-11-01T10:00:00Z',
   updated_at: '2026-11-01T10:00:00Z',
   ...patch,

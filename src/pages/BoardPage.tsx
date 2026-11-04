@@ -72,6 +72,7 @@ export function BoardPage() {
           <Section title="Задачи">
             <UrgencyBoard
               notes={temporary}
+              allNotes={notes}
               itemsByNote={itemsByNote}
               labelsFor={labelsFor}
               onArchive={archive}

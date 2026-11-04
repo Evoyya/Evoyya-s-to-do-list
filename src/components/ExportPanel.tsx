@@ -10,6 +10,7 @@ import {
   type Period,
 } from '../lib/archiveStats'
 import type { CompletedItem } from '../lib/completedItems'
+import { linkedTitles, onBoard } from '../lib/links'
 import type { Note } from '../lib/notes'
 import { useCompletedByName } from './CompletedItemsList'
 import { PeriodPicker } from './PeriodPicker'
@@ -19,10 +20,13 @@ import { useToast } from './Toast'
 // Файл собирается прямо в браузере, сервер не нужен.
 export function ExportPanel({
   archived,
+  board,
   completed,
   onClose,
 }: {
   archived: Note[]
+  // Задачи доски: в выгрузке видно, с какими ещё не выполненными задачами связана архивная
+  board: Note[]
   // Выполненные пункты постоянных заметок — тоже попадают в выгрузку
   completed: CompletedItem[]
   onClose: () => void
@@ -39,7 +43,15 @@ export function ExportPanel({
     [completed, period],
   )
   const nothing = notes.length === 0 && items.length === 0
-  const markdown = () => archiveToMarkdown(notes, period, itemsByNote, labelsFor, items, nameOf)
+  const linkedOf = (note: Note) => {
+    const active = onBoard(board)
+    return [
+      ...linkedTitles(note, archived).map((title) => `«${title}»`),
+      ...linkedTitles(note, active).map((title) => `«${title}» (ещё на доске)`),
+    ]
+  }
+  const markdown = () =>
+    archiveToMarkdown(notes, period, itemsByNote, labelsFor, items, nameOf, linkedOf)
   const file = () =>
     new File([markdown()], exportFileName(period), { type: 'text/markdown;charset=utf-8' })
 

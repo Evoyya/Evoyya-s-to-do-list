@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useMyLabels } from '../hooks/useLabels'
-import { useCreateNote } from '../hooks/useNotes'
+import { useCreateNote, useNotes } from '../hooks/useNotes'
+import { onBoard } from '../lib/links'
 import { cardStyle } from '../lib/color'
 import type { NoteKind } from '../lib/notes'
 import { Checkbox } from './Checkbox'
-import { LabelIcon } from './icons'
+import { LabelIcon, LinkIcon } from './icons'
+import { LinkedList, LinkPicker } from './LinkPicker'
 import { LabelChips, LabelPicker } from './LabelPicker'
 import { DEFAULT_URGENCY, type Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
@@ -31,6 +33,13 @@ export function NoteComposer() {
   const chosen = myLabels.filter((l) => labelIds.includes(l.id))
   const primary = chosen.find((l) => l.id === primaryId) ?? chosen[0]
   const ordered = primary ? [primary, ...chosen.filter((l) => l !== primary)] : chosen
+  // ТР-11: с какими задачами того же столбца связать новую
+  const { data: boardNotes = [] } = useNotes()
+  const [linkIds, setLinkIds] = useState<string[]>([])
+  const [linkOpen, setLinkOpen] = useState(false)
+  const linkButtonRef = useRef<HTMLButtonElement>(null)
+  const linkCandidates = onBoard(boardNotes).filter((n) => n.urgency === urgency)
+  const linked = linkCandidates.filter((n) => linkIds.includes(n.id))
 
   const reset = () => {
     setOpen(false)
@@ -43,6 +52,8 @@ export function NoteComposer() {
     setLabelIds([])
     setPrimaryId(null)
     setLabelsOpen(false)
+    setLinkIds([])
+    setLinkOpen(false)
   }
 
   const save = () => {
@@ -58,6 +69,7 @@ export function NoteComposer() {
       items: (items ?? []).map((i) => i.trim()).filter(Boolean),
       labelIds,
       primaryLabelId: primary && primary.id === primaryId ? primary.id : null,
+      linkIds: kind === 'temporary' ? linked.map((n) => n.id) : [],
     })
     reset()
   }
@@ -130,11 +142,45 @@ export function NoteComposer() {
           toggleRef={labelsButtonRef}
         />
       )}
+      {kind === 'temporary' && <LinkedList titles={linked.map((n) => n.title)} />}
+      {linkOpen && kind === 'temporary' && (
+        <LinkPicker
+          candidates={linkCandidates}
+          selected={linkIds}
+          onToggle={(id, on) =>
+            setLinkIds((ids) => (on ? [...ids, id] : ids.filter((x) => x !== id)))
+          }
+          onClose={() => setLinkOpen(false)}
+          toggleRef={linkButtonRef}
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <KindToggle value={kind} onChange={setKind} />
-          {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
+          {kind === 'temporary' && (
+            <UrgencySelect
+              value={urgency}
+              onChange={(value) => {
+                setUrgency(value)
+                // Связать можно только с задачами того же столбца
+                setLinkIds([])
+              }}
+            />
+          )}
           {kind === 'temporary' && <DeadlineInput value={dueDate} onChange={setDueDate} />}
+          {kind === 'temporary' && (
+            <button
+              ref={linkButtonRef}
+              type="button"
+              onClick={() => setLinkOpen(!linkOpen)}
+              aria-expanded={linkOpen}
+              title="Связать с задачами этого столбца"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm text-text-muted hover:bg-surface hover:text-text"
+            >
+              <LinkIcon />
+              Связать
+            </button>
+          )}
           <button
             ref={labelsButtonRef}
             type="button"

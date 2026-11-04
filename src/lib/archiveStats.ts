@@ -2,6 +2,7 @@ import type { LabelView } from '../hooks/useLabels'
 import type { ChecklistItem } from './checklist'
 import type { CompletedItem } from './completedItems'
 import type { Label } from './labels'
+import { onBoard } from './links'
 import type { Note } from './notes'
 import { URGENCIES, type Urgency } from './urgency'
 
@@ -161,6 +162,52 @@ export function computeStats(notes: Note[], labelsFor: (note: Note) => LabelView
   }
 }
 
+// ТР-11: связанные задачи. notes — архивные задачи периода (как в общей статистике),
+// archived — весь архив, board — задачи доски: по ним видно, закрыт ли блок целиком.
+export type LinkStats = {
+  linked: number // закрыто задач в составе блоков
+  single: number // закрыто одиночных временных задач
+  closedBlocks: number // блоков, у которых все задачи в архиве, последняя — в периоде
+  avgBlockSize: number | null
+  avgBlockMs: number | null // от создания первой задачи блока до архивации последней
+}
+
+export function computeLinkStats(notes: Note[], archived: Note[], board: Note[]): LinkStats {
+  const active = onBoard(board)
+  const membersOf = new Map<string, Note[]>()
+  for (const n of [...archived, ...active]) {
+    if (n.kind !== 'temporary' || !n.link_group) continue
+    membersOf.set(n.link_group, [...(membersOf.get(n.link_group) ?? []), n])
+  }
+  const inBlock = (n: Note) => !!n.link_group && (membersOf.get(n.link_group)?.length ?? 0) >= 2
+
+  const temporary = notes.filter((n) => n.kind === 'temporary')
+  const linked = temporary.filter(inBlock)
+  const onBoardGroups = new Set(active.map((n) => n.link_group))
+  const inPeriodIds = new Set(notes.map((n) => n.id))
+
+  const closed: Note[][] = []
+  for (const group of new Set(linked.map((n) => n.link_group!))) {
+    if (onBoardGroups.has(group)) continue
+    const members = membersOf.get(group)!
+    // Блок считается в периоде, где закрыта его последняя задача
+    const last = members.reduce((a, b) => (a.archived_at! >= b.archived_at! ? a : b))
+    if (inPeriodIds.has(last.id)) closed.push(members)
+  }
+
+  const span = (members: Note[]) =>
+    Math.max(...members.map((m) => new Date(m.archived_at!).getTime())) -
+    Math.min(...members.map((m) => new Date(m.created_at).getTime()))
+
+  return {
+    linked: linked.length,
+    single: temporary.length - linked.length,
+    closedBlocks: closed.length,
+    avgBlockSize: average(closed.map((m) => m.length)),
+    avgBlockMs: average(closed.map(span)),
+  }
+}
+
 // Выполненные пункты постоянных заметок: сколько в каждой заметке и что чаще всего
 export type ItemStats = {
   total: number
@@ -210,6 +257,8 @@ export function archiveToMarkdown(
   // Выполненные пункты постоянных заметок за тот же период и кто их отметил
   completed: CompletedItem[] = [],
   nameOf: (userId: string | null) => string | null = () => null,
+  // ТР-11: задачи, связанные с этой (в архиве и на доске), уже в кавычках
+  linkedOf: (note: Note) => string[] = () => [],
 ) {
   const lines = [
     `# Архив заметок ${periodLabel(period)}`,
@@ -232,6 +281,8 @@ export function archiveToMarkdown(
     }
     lines.push(`## ${note.title}`, '')
     lines.push(meta.join(' · '))
+    const linked = linkedOf(note)
+    if (linked.length > 0) lines.push(`Связанные задачи: ${linked.join(', ')}`)
     lines.push(
       `Создана ${dateTime(note.created_at)} → в архиве ${dateTime(note.archived_at!)} (${formatDuration(lifetimeMs(note))})`,
     )

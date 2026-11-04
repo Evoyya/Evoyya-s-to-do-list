@@ -3,14 +3,25 @@ import { useAuth } from '../auth/AuthProvider'
 import {
   useAddNoteLabel,
   useLabelsFor,
+  useNoteLabelRows,
   useRemoveNoteLabel,
   useSetPrimaryLabel,
 } from '../hooks/useLabels'
-import { useArchive, useUpdateNote } from '../hooks/useNotes'
+import { useArchive, useNotes, usePlaces, useUpdateNote } from '../hooks/useNotes'
+import {
+  blockMates,
+  labelTargets,
+  missingLabelRows,
+  onBoard,
+  planLink,
+  planMoveBlock,
+  planUnlink,
+} from '../lib/links'
 import { cardStyle } from '../lib/color'
 import type { Note, NoteKind, NotePatch } from '../lib/notes'
 import { ChecklistEditor } from './ChecklistEditor'
-import { ArchiveIcon, LabelIcon, PersonAddIcon } from './icons'
+import { ArchiveIcon, LabelIcon, LinkIcon, PersonAddIcon } from './icons'
+import { LinkedList, LinkPicker } from './LinkPicker'
 import { LabelChips, LabelPicker } from './LabelPicker'
 import { MissingLabels } from './MissingLabels'
 import { SharePanel } from './SharePanel'
@@ -50,6 +61,37 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   // На общей заметке ярлыки ставит её создатель (ТР-9)
   const canLabel = note.owner_id === session?.user.id
 
+  // ТР-11: связанные задачи. Связывание и «Отвязать» сохраняются сразу, как ярлыки.
+  const { data: boardNotes = [] } = useNotes()
+  const places = usePlaces()
+  const mates = blockMates(boardNotes, note.link_group).filter((m) => m.id !== note.id)
+  const mateIds = new Set(mates.map((m) => m.id))
+  const linkCandidates = onBoard(boardNotes).filter(
+    (n) => n.urgency === urgency && n.id !== note.id && !mateIds.has(n.id),
+  )
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkSelection, setLinkSelection] = useState<string[]>([])
+  const linkButtonRef = useRef<HTMLButtonElement>(null)
+  // ТР-11: ярлык ставится и снимается сразу у всех своих задач блока
+  const { data: labelRows = [] } = useNoteLabelRows()
+  const toggleLabel = (labelId: string, on: boolean) => {
+    const ids =
+      kind === 'temporary' ? labelTargets(boardNotes, note.id, session!.user.id) : [note.id]
+    if (on) {
+      for (const row of missingLabelRows(ids, [labelId], labelRows)) addNoteLabel.mutate(row)
+    } else {
+      for (const row of labelRows) {
+        if (row.label_id === labelId && ids.includes(row.note_id)) removeNoteLabel.mutate(row)
+      }
+    }
+  }
+
+  const applyLink = () => {
+    places.mutate(planLink(boardNotes, note.id, linkSelection, urgency, () => crypto.randomUUID()))
+    setLinkSelection([])
+    setLinkOpen(false)
+  }
+
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
@@ -85,6 +127,11 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
     const patch = collectChanges()
     if (!patch) return
     if (Object.keys(patch).length > 0) updateNote.mutate({ note, patch })
+    // ТР-11: задача блока переезжает в другой столбец вместе со всем блоком
+    if (patch.urgency && kind === 'temporary') {
+      const moves = planMoveBlock(boardNotes, note.id, patch.urgency)
+      if (moves.length > 0) places.mutate(moves)
+    }
     onClose()
   }
 
@@ -136,13 +183,29 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
         <ChecklistEditor noteId={note.id} />
         <LabelChips labels={labels} onClick={canLabel ? () => setLabelsOpen(true) : undefined} />
         <MissingLabels missing={view.missing} />
+        {kind === 'temporary' && (
+          <LinkedList
+            titles={mates.map((m) => m.title)}
+            onUnlink={() => places.mutate(planUnlink(boardNotes, note.id))}
+          />
+        )}
+        {linkOpen && kind === 'temporary' && (
+          <LinkPicker
+            candidates={linkCandidates}
+            selected={linkSelection}
+            onToggle={(id, on) =>
+              setLinkSelection((ids) => (on ? [...ids, id] : ids.filter((x) => x !== id)))
+            }
+            onApply={applyLink}
+            onClose={() => setLinkOpen(false)}
+            toggleRef={linkButtonRef}
+          />
+        )}
         {labelsOpen && (
           <LabelPicker
             selected={labels.map((l) => l.id)}
             primaryId={labels[0]?.id ?? null}
-            onToggle={(labelId, on) =>
-              (on ? addNoteLabel : removeNoteLabel).mutate({ note_id: note.id, label_id: labelId })
-            }
+            onToggle={toggleLabel}
             onSetPrimary={(labelId) => setPrimaryLabel.mutate({ noteId: note.id, labelId })}
             onClose={() => setLabelsOpen(false)}
             toggleRef={labelsButtonRef}
@@ -159,8 +222,31 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <div className="flex flex-wrap items-center gap-2">
             <KindToggle value={kind} onChange={setKind} />
-            {kind === 'temporary' && <UrgencySelect value={urgency} onChange={setUrgency} />}
+            {kind === 'temporary' && (
+              <UrgencySelect
+                value={urgency}
+                onChange={(value) => {
+                  setUrgency(value)
+                  // Связать можно только с задачами того же столбца
+                  setLinkSelection([])
+                }}
+              />
+            )}
             {kind === 'temporary' && <DeadlineInput value={dueDate} onChange={setDueDate} />}
+            {kind === 'temporary' && !note.archived_at && (
+              <button
+                ref={linkButtonRef}
+                type="button"
+                onClick={() => setLinkOpen(!linkOpen)}
+                aria-expanded={linkOpen}
+                title="Связать с задачами этого столбца"
+                aria-label="Связать"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-surface hover:text-text"
+              >
+                <LinkIcon />
+                <span className="hidden sm:inline">Связать</span>
+              </button>
+            )}
             {canLabel && (
               <button
                 ref={labelsButtonRef}
