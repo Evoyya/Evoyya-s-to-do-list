@@ -160,6 +160,8 @@ export type Database = {
           note_id: string
           position: number
           role: Database["public"]["Enums"]["member_role"]
+          sprint_id: string | null
+          sprint_position: number | null
           urgency: Database["public"]["Enums"]["urgency"]
           user_id: string
         }
@@ -170,6 +172,8 @@ export type Database = {
           note_id: string
           position?: number
           role?: Database["public"]["Enums"]["member_role"]
+          sprint_id?: string | null
+          sprint_position?: number | null
           urgency?: Database["public"]["Enums"]["urgency"]
           user_id: string
         }
@@ -180,6 +184,8 @@ export type Database = {
           note_id?: string
           position?: number
           role?: Database["public"]["Enums"]["member_role"]
+          sprint_id?: string | null
+          sprint_position?: number | null
           urgency?: Database["public"]["Enums"]["urgency"]
           user_id?: string
         }
@@ -189,6 +195,13 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_members_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
             referencedColumns: ["id"]
           },
           {
@@ -284,6 +297,47 @@ export type Database = {
         }
         Relationships: []
       }
+      sprints: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          owner_id: string
+          shape: Database["public"]["Enums"]["sprint_shape"]
+          title: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_id?: string
+          shape: Database["public"]["Enums"]["sprint_shape"]
+          title: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          owner_id?: string
+          shape?: Database["public"]["Enums"]["sprint_shape"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprints_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -301,6 +355,15 @@ export type Database = {
     Enums: {
       member_role: "owner" | "editor"
       note_kind: "permanent" | "temporary"
+      sprint_shape:
+        | "circle"
+        | "square"
+        | "triangle"
+        | "diamond"
+        | "hexagon"
+        | "star"
+        | "heart"
+        | "shield"
       urgency: "critical" | "urgent" | "not_urgent" | "no_deadline"
     }
     CompositeTypes: {
@@ -431,6 +494,7 @@ export const Constants = {
     Enums: {
       member_role: ["owner", "editor"],
       note_kind: ["permanent", "temporary"],
+      sprint_shape: ["circle", "square", "triangle", "diamond", "hexagon", "star", "heart", "shield"],
       urgency: ["critical", "urgent", "not_urgent", "no_deadline"],
     },
   },

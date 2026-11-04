@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useMyLabels } from '../hooks/useLabels'
-import { useCreateNote, useNotes } from '../hooks/useNotes'
+import { useCreateNote, useNotes, useSprintNotes } from '../hooks/useNotes'
+import { useSprintLists } from '../hooks/useSprints'
+import { numberChoices } from '../lib/sprints'
 import { onBoard } from '../lib/links'
 import { cardStyle } from '../lib/color'
 import type { NoteKind } from '../lib/notes'
@@ -13,6 +15,7 @@ import { DEFAULT_URGENCY, type Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
 import { UrgencySelect } from './UrgencySelect'
 import { DeadlineInput } from './DeadlineInput'
+import { SprintField } from './SprintField'
 
 // Форма создания заметки: свёрнута в строку «Заметка…», раскрывается по нажатию
 export function NoteComposer() {
@@ -40,6 +43,13 @@ export function NoteComposer() {
   const linkButtonRef = useRef<HTMLButtonElement>(null)
   const linkCandidates = onBoard(boardNotes).filter((n) => n.urgency === urgency)
   const linked = linkCandidates.filter((n) => linkIds.includes(n.id))
+  // ТР-12: действующий спринт и номер новой задачи в нём (null — в конец)
+  const { active: activeSprints } = useSprintLists()
+  const sprintNotes = useSprintNotes()
+  const [sprintId, setSprintId] = useState<string | null>(null)
+  const [sprintNumber, setSprintNumber] = useState<number | null>(null)
+  // Спринт могли завершить на другом устройстве, пока форма открыта
+  const sprint = activeSprints.find((s) => s.id === sprintId) ?? null
 
   const reset = () => {
     setOpen(false)
@@ -54,6 +64,8 @@ export function NoteComposer() {
     setLabelsOpen(false)
     setLinkIds([])
     setLinkOpen(false)
+    setSprintId(null)
+    setSprintNumber(null)
   }
 
   const save = () => {
@@ -70,6 +82,8 @@ export function NoteComposer() {
       labelIds,
       primaryLabelId: primary && primary.id === primaryId ? primary.id : null,
       linkIds: kind === 'temporary' ? linked.map((n) => n.id) : [],
+      sprintId: kind === 'temporary' ? (sprint?.id ?? null) : null,
+      sprintNumber,
     })
     reset()
   }
@@ -143,6 +157,18 @@ export function NoteComposer() {
         />
       )}
       {kind === 'temporary' && <LinkedList titles={linked.map((n) => n.title)} />}
+      {kind === 'temporary' && activeSprints.length > 0 && (
+        <SprintField
+          sprints={activeSprints}
+          sprintId={sprint?.id ?? null}
+          number={sprintNumber}
+          choices={numberChoices(sprintNotes, '', sprint?.id ?? null)}
+          onChange={(id, number) => {
+            setSprintId(id)
+            setSprintNumber(number)
+          }}
+        />
+      )}
       {linkOpen && kind === 'temporary' && (
         <LinkPicker
           candidates={linkCandidates}

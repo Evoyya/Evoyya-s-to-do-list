@@ -1,11 +1,11 @@
--- Тесты схемы и правил доступа (ТР-1…ТР-6, ТР-8, ТР-9).
+-- Тесты схемы и правил доступа (ТР-1…ТР-6, ТР-8, ТР-9, ТР-11, ТР-12).
 -- Запуск: supabase test db
 
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(38);
+select plan(44);
 
 -- ------------------------------------------------------------
 -- Тестовые данные: пользователь A (создатель) и B (девушка)
@@ -314,6 +314,53 @@ select is(
    where note_id = '10000000-0000-0000-0000-000000000001'
      and user_id = '00000000-0000-0000-0000-00000000000a'),
   '50000000-0000-0000-0000-000000000001', 'ТР-11: связи B не меняют связи A'
+);
+
+-- ТР-12: спринты личные, фигура занята только действующим спринтом
+insert into public.sprints (id, title, shape) values
+  ('70000000-0000-0000-0000-000000000001', 'Сессия', 'circle');
+
+select throws_ok(
+  $$ insert into public.sprints (title, shape) values ('Переезд', 'circle') $$,
+  '23505', null, 'ТР-12: фигуру действующего спринта нельзя занять второй раз'
+);
+
+select lives_ok(
+  $$ select public.update_my_places(
+       '[{"note_id": "10000000-0000-0000-0000-000000000001",
+          "sprint_id": "70000000-0000-0000-0000-000000000001", "sprint_position": 1}]') $$,
+  'ТР-12: A добавляет задачу в свой спринт'
+);
+
+select is(
+  (select sprint_id::text from public.note_members
+   where note_id = '10000000-0000-0000-0000-000000000001'
+     and user_id = '00000000-0000-0000-0000-00000000000a'),
+  '70000000-0000-0000-0000-000000000001', 'ТР-12: спринт хранится в личном месте задачи'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b"}', true);
+
+select is(
+  (select count(*)::int from public.sprints),
+  0, 'ТР-12: B не видит спринты A'
+);
+
+select throws_ok(
+  $$ update public.note_members set sprint_id = '70000000-0000-0000-0000-000000000001'
+     where note_id = '10000000-0000-0000-0000-000000000001'
+       and user_id = '00000000-0000-0000-0000-00000000000b' $$,
+  'P0001', null, 'ТР-12: в своё место нельзя поставить чужой спринт'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000a"}', true);
+
+update public.sprints set completed_at = now()
+  where id = '70000000-0000-0000-0000-000000000001';
+
+select lives_ok(
+  $$ insert into public.sprints (title, shape) values ('Переезд', 'circle') $$,
+  'ТР-12: после завершения спринта его фигура снова свободна'
 );
 
 -- A закрывает доступ к задаче

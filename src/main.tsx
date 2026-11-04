@@ -25,6 +25,10 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <BoardPage /> },
           {
+            path: 'sprints',
+            lazy: async () => ({ Component: (await import('./pages/SprintsPage')).SprintsPage }),
+          },
+          {
             path: 'archive',
             lazy: async () => ({ Component: (await import('./pages/ArchivePage')).ArchivePage }),
           },

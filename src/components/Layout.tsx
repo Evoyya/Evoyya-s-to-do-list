@@ -8,6 +8,7 @@ import { UpdatePrompt } from './UpdatePrompt'
 
 const navItems = [
   { to: '/', label: 'Доска', end: true },
+  { to: '/sprints', label: 'Спринты', end: false },
   { to: '/archive', label: 'Архив', end: false },
   { to: '/labels', label: 'Ярлыки', end: false },
   { to: '/stats', label: 'Статистика', end: false },
@@ -22,18 +23,19 @@ export function Layout() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-page/60 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-4 sm:px-4">
+      <header className="sticky top-0 z-10 flex items-center gap-1 border-b border-border/40 bg-page/60 px-2 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-4 sm:px-4">
         {/* На телефоне название скрыто, чтобы шапка помещалась в ширину экрана */}
         <span className="hidden py-3 text-lg font-medium sm:inline">Task-менеджер</span>
 
-        <nav className="flex gap-0.5 py-2 sm:gap-1">
+        {/* На узком телефоне вкладки листаются вбок, а не выталкивают кнопку «Выйти» */}
+        <nav className="flex min-w-0 [scrollbar-width:none] gap-0.5 overflow-x-auto py-2 sm:gap-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `rounded-full px-2 py-1.5 text-sm transition-colors sm:px-3 ${
+                `shrink-0 rounded-full px-1.5 py-1.5 text-sm transition-colors sm:px-3 ${
                   isActive
                     ? 'bg-accent/20 text-accent'
                     : 'text-text-muted hover:bg-surface-raised hover:text-text'
@@ -45,8 +47,11 @@ export function Layout() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1 sm:gap-3">
-          <Avatar name={name} url={avatarUrl} />
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
+          {/* На телефоне аватар скрыт: пять вкладок и «Выйти» едва помещаются в ширину */}
+          <span className="hidden sm:contents">
+            <Avatar name={name} url={avatarUrl} />
+          </span>
           <button
             type="button"
             onClick={() => void signOut()}

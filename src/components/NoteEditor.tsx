@@ -7,7 +7,16 @@ import {
   useRemoveNoteLabel,
   useSetPrimaryLabel,
 } from '../hooks/useLabels'
-import { useArchive, useNotes, usePlaces, useUpdateNote } from '../hooks/useNotes'
+import {
+  useArchive,
+  useNotes,
+  usePlaces,
+  useSprintNotes,
+  useSprintPlaces,
+  useUpdateNote,
+} from '../hooks/useNotes'
+import { useSprintLists } from '../hooks/useSprints'
+import { addLabelTargets, numberChoices, planJoin, planLeave, sprintNumber } from '../lib/sprints'
 import {
   blockMates,
   labelTargets,
@@ -29,6 +38,7 @@ import type { Urgency } from '../lib/urgency'
 import { KindToggle } from './KindToggle'
 import { UrgencySelect } from './UrgencySelect'
 import { DeadlineInput } from './DeadlineInput'
+import { SprintField } from './SprintField'
 
 // Окно редактирования. Как в Keep: закрытие (Esc, клик мимо, «Готово») сохраняет изменения.
 export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
@@ -72,18 +82,40 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkSelection, setLinkSelection] = useState<string[]>([])
   const linkButtonRef = useRef<HTMLButtonElement>(null)
-  // ТР-11: ярлык ставится и снимается сразу у всех своих задач блока
+  // ТР-11: ярлык ставится и снимается сразу у всех своих задач блока.
+  // ТР-12: поставленный ярлык получают и задачи действующего спринта; снятие их не трогает.
   const { data: labelRows = [] } = useNoteLabelRows()
   const toggleLabel = (labelId: string, on: boolean) => {
-    const ids =
-      kind === 'temporary' ? labelTargets(boardNotes, note.id, session!.user.id) : [note.id]
+    const temporary = kind === 'temporary'
     if (on) {
+      const ids = temporary
+        ? addLabelTargets(
+            boardNotes,
+            note.id,
+            session!.user.id,
+            new Set(activeSprints.map((s) => s.id)),
+          )
+        : [note.id]
       for (const row of missingLabelRows(ids, [labelId], labelRows)) addNoteLabel.mutate(row)
     } else {
+      const ids = temporary ? labelTargets(boardNotes, note.id, session!.user.id) : [note.id]
       for (const row of labelRows) {
         if (row.label_id === labelId && ids.includes(row.note_id)) removeNoteLabel.mutate(row)
       }
     }
+  }
+
+  // ТР-12: спринт и номер задачи. Как и связи, сохраняются сразу.
+  const { active: activeSprints } = useSprintLists()
+  const sprintNotes = useSprintNotes()
+  const sprintPlaces = useSprintPlaces()
+  const fresh = sprintNotes.find((n) => n.id === note.id) ?? note
+  // Задача завершённого спринта считается вне спринта
+  const sprint = activeSprints.find((s) => s.id === fresh.sprint_id) ?? null
+  const changeSprint = (sprintId: string | null, number: number | null) => {
+    sprintPlaces.mutate(
+      sprintId ? planJoin(sprintNotes, note.id, sprintId, number) : planLeave(note.id),
+    )
   }
 
   const applyLink = () => {
@@ -187,6 +219,15 @@ export function NoteEditor({ note, onClose }: { note: Note; onClose: () => void 
           <LinkedList
             titles={mates.map((m) => m.title)}
             onUnlink={() => places.mutate(planUnlink(boardNotes, note.id))}
+          />
+        )}
+        {kind === 'temporary' && !note.archived_at && (activeSprints.length > 0 || sprint) && (
+          <SprintField
+            sprints={activeSprints}
+            sprintId={sprint?.id ?? null}
+            number={sprint ? sprintNumber(sprintNotes, fresh) : null}
+            choices={numberChoices(sprintNotes, note.id, sprint?.id ?? null)}
+            onChange={changeSprint}
           />
         )}
         {linkOpen && kind === 'temporary' && (

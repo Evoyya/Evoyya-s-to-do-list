@@ -1,18 +1,30 @@
 import type { Json, Tables, TablesUpdate } from './database.types'
 import { supabase } from './supabase'
 
-// link_group — блок связанных задач (ТР-11). Хранится только в личном месте участника.
-export type Note = Tables<'notes'> & { link_group: string | null }
+// Хранятся только в личном месте участника:
+// link_group — блок связанных задач (ТР-11), sprint_id и sprint_position — спринт (ТР-12)
+type PersonalExtra = {
+  link_group: string | null
+  sprint_id: string | null
+  sprint_position: number | null
+}
+export type Note = Tables<'notes'> & PersonalExtra
 export type NoteKind = Note['kind']
-export type NotePatch = TablesUpdate<'notes'> & { link_group?: string | null }
+export type NotePatch = TablesUpdate<'notes'> & Partial<PersonalExtra>
 
-// Личное место задачи: столбец, порядок и блок. Поля без значения не меняются.
+// Личное место задачи: столбец, порядок, блок и спринт. Поля без значения не меняются.
 export type Place = {
   note_id: string
   urgency?: Note['urgency']
   position?: number
   link_group?: string | null
+  sprint_id?: string | null
+  sprint_position?: number | null
 }
+
+// Поля, которых нет в самой заметке
+const EXTRA_FIELDS = ['link_group', 'sprint_id', 'sprint_position'] as const
+const NO_EXTRA: PersonalExtra = { link_group: null, sprint_id: null, sprint_position: null }
 
 // ТР-9: у временной задачи столбец, порядок и архив у каждого участника свои
 // (хранятся в note_members); у постоянной — общие (в самой заметке)
@@ -30,13 +42,15 @@ async function fetchAccessibleNotes(): Promise<Note[]> {
   const userId = await currentUserId()
   const { data, error } = await supabase
     .from('notes')
-    .select('*, note_members!inner(urgency, position, archived_at, link_group)')
+    .select(
+      '*, note_members!inner(urgency, position, archived_at, link_group, sprint_id, sprint_position)',
+    )
     .eq('note_members.user_id', userId)
   if (error) throw error
   return data.map(({ note_members, ...note }) => {
     const mine = note_members[0]
     if (note.kind === 'temporary' && mine) return { ...note, ...mine }
-    return { ...note, link_group: null }
+    return { ...note, ...NO_EXTRA }
   })
 }
 
@@ -52,6 +66,12 @@ export async function fetchArchivedNotes(): Promise<Note[]> {
   return notes
     .filter((n) => n.archived_at)
     .sort((a, b) => b.archived_at!.localeCompare(a.archived_at!))
+}
+
+// ТР-12: задачи своих спринтов — и на доске, и в архиве
+export async function fetchSprintNotes(): Promise<Note[]> {
+  const notes = await fetchAccessibleNotes()
+  return notes.filter((n) => n.sprint_id)
 }
 
 export async function insertNote(note: Note) {
@@ -75,12 +95,18 @@ export async function updateNote(note: Note, patch: NotePatch) {
   let shared: NotePatch = { ...patch }
   let personal: NotePatch = {}
 
-  // Блок есть только в личном месте; постоянная заметка из блока выходит (ТР-11)
-  if ('link_group' in shared) {
-    personal.link_group = shared.link_group
-    delete shared.link_group
+  // Блок и спринт есть только в личном месте; постоянная заметка из них выходит (ТР-11, ТР-12)
+  for (const field of EXTRA_FIELDS) {
+    if (field in shared) {
+      personal = { ...personal, [field]: shared[field] }
+      delete shared[field]
+    }
   }
   if (kind === 'permanent' && note.link_group) personal.link_group = null
+  if (kind === 'permanent' && note.sprint_id) {
+    personal.sprint_id = null
+    personal.sprint_position = null
+  }
 
   if (kind === 'temporary') {
     for (const field of PERSONAL_FIELDS) {
@@ -102,21 +128,20 @@ export async function updateNote(note: Note, patch: NotePatch) {
     else shared = { ...current, ...shared }
   }
 
-  const { link_group: _personal, ...sharedOnly } = shared
-  if (Object.keys(sharedOnly).length > 0) await updateSharedNote(note.id, sharedOnly)
+  if (Object.keys(shared).length > 0) await updateSharedNote(note.id, shared)
   if (Object.keys(personal).length > 0) {
     const userId = await currentUserId()
-    const { urgency, position, archived_at, link_group } = personal
+    const { urgency, position, archived_at, link_group, sprint_id, sprint_position } = personal
     const { error } = await supabase
       .from('note_members')
-      .update({ urgency, position, archived_at, link_group })
+      .update({ urgency, position, archived_at, link_group, sprint_id, sprint_position })
       .eq('note_id', note.id)
       .eq('user_id', userId)
     if (error) throw error
   }
 }
 
-// ТР-11: своё место у нескольких задач сразу — перенос блока, связывание
+// ТР-11, ТР-12: своё место у нескольких задач сразу — перенос блока, связывание, номера в спринте
 export async function updateMyPlaces(places: Place[]) {
   if (places.length === 0) return
   const { error } = await supabase.rpc('update_my_places', { p_places: places as Json })

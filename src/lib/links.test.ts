@@ -27,6 +27,8 @@ const task = (id: string, position: number, patch: Partial<Note> = {}): Note => 
   primary_label_id: null,
   archived_at: null,
   link_group: null,
+  sprint_id: null,
+  sprint_position: null,
   created_at: '2026-11-01T10:00:00Z',
   updated_at: '2026-11-01T10:00:00Z',
   ...patch,

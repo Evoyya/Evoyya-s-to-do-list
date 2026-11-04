@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
+import { useFinePointer } from '../hooks/useFinePointer'
 import { useMembersByNote } from '../hooks/useMembers'
+import { useSprintBadges } from '../hooks/useSprints'
 import type { LabelView } from '../hooks/useLabels'
 import { useUpdateItem } from '../hooks/useChecklist'
 import type { ChecklistItem } from '../lib/checklist'
@@ -12,6 +14,8 @@ import { Checkbox, doneLabel } from './Checkbox'
 import { formatDeadline } from './DeadlineInput'
 import { ArchiveIcon } from './icons'
 import { LabelChips } from './LabelPicker'
+import { SprintDialog } from './SprintDialog'
+import { SprintIcon } from './SprintIcon'
 
 const MAX_VISIBLE_ITEMS = 8
 
@@ -43,6 +47,49 @@ export function NoteCard({
   const others = (useMembersByNote().get(note.id) ?? []).filter(
     (m) => m.user_id !== session?.user.id,
   )
+  // ТР-12: фигура действующего спринта с номером задачи внутри
+  const badge = useSprintBadges()(note)
+  const hasLabels = !!view && view.labels.length > 0
+  const hasDeadline = note.kind === 'temporary' && !!note.due_date
+  // Значок встаёт справа в нижнюю строку карточки: дедлайн → ярлыки → свой угол
+  const badgePlace = !badge ? null : hasDeadline ? 'deadline' : hasLabels ? 'labels' : 'corner'
+  // Отрицательный отступ: крупная фигура не раздвигает строку с текстом
+  const badgeMargin = compact ? '-my-1' : '-my-1.5'
+  const badgeTitle = badge && `Спринт «${badge.sprint.title}», задача № ${badge.number}`
+  const icon = badge && (
+    <SprintIcon
+      shape={badge.sprint.shape}
+      number={badge.number}
+      filled
+      className={compact ? 'size-7' : 'size-8'}
+      title={badgeTitle!}
+    />
+  )
+  // С мышью значок открывает окно спринта; на телефоне он не нажимается,
+  // чтобы случайное касание открывало задачу, как обычно
+  const finePointer = useFinePointer()
+  const [sprintOpen, setSprintOpen] = useState(false)
+  const badgeIcon =
+    badge &&
+    (finePointer ? (
+      <button
+        type="button"
+        title={`${badgeTitle} — открыть спринт`}
+        aria-label={`Открыть спринт «${badge.sprint.title}»`}
+        onClick={(e) => {
+          e.stopPropagation()
+          setSprintOpen(true)
+        }}
+        // Нажатие на значок не должно начинать перетаскивание карточки
+        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        className={`${badgeMargin} shrink-0 rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-accent`}
+      >
+        {icon}
+      </button>
+    ) : (
+      <span className={`${badgeMargin} shrink-0`}>{icon}</span>
+    ))
   const active = items.filter((i) => !i.is_done)
   const doneCount = items.length - active.length
 
@@ -104,19 +151,39 @@ export function NoteCard({
         </ul>
       )}
       {doneCount > 0 && <p className="text-sm text-text-muted">{doneLabel(doneCount)}</p>}
-      {view && <LabelChips labels={view.labels} />}
-      {/* ТР-2: дедлайн — в самом низу, под ярлыками */}
-      {note.kind === 'temporary' && note.due_date && (
-        <p className="text-sm text-text-muted">{formatDeadline(note.due_date)}</p>
+      {hasLabels && (
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <LabelChips labels={view.labels} />
+          </div>
+          {badgePlace === 'labels' && badgeIcon}
+        </div>
       )}
-      {others.length > 0 && (
-        <ul className="flex justify-end gap-1" aria-label="Участники">
-          {others.map((m) => (
-            <li key={m.user_id}>
-              <Avatar name={memberName(m)} url={m.profile?.avatar_url} className="size-6 text-xs" />
-            </li>
-          ))}
-        </ul>
+      {/* ТР-2: дедлайн — в самом низу, под ярлыками */}
+      {hasDeadline && (
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 text-sm text-text-muted">{formatDeadline(note.due_date!)}</p>
+          {badgePlace === 'deadline' && badgeIcon}
+        </div>
+      )}
+      {/* Правый нижний угол: участники и значок спринта, если ему нет места выше */}
+      {(others.length > 0 || badgePlace === 'corner') && (
+        <div className="flex items-center justify-end gap-1">
+          {others.length > 0 && (
+            <ul className="flex gap-1" aria-label="Участники">
+              {others.map((m) => (
+                <li key={m.user_id}>
+                  <Avatar
+                    name={memberName(m)}
+                    url={m.profile?.avatar_url}
+                    className="size-6 text-xs"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {badgePlace === 'corner' && badgeIcon}
+        </div>
       )}
       {actions && (
         // С мышью кнопки появляются при наведении, как в Keep; на телефоне видны всегда
@@ -127,6 +194,13 @@ export function NoteCard({
         >
           {actions}
         </div>
+      )}
+      {sprintOpen && badge && (
+        <SprintDialog
+          sprint={badge.sprint}
+          currentId={note.id}
+          onClose={() => setSprintOpen(false)}
+        />
       )}
     </div>
   )

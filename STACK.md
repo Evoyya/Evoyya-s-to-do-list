@@ -53,7 +53,8 @@
 | `checklist_items` | `id`, `note_id`, `text`, `is_done`, `position`, `updated_at` |
 | `labels` | `id`, `owner_id`, `name`, `color`; уникальность (`owner_id`, `name`) и (`owner_id`, `color`) |
 | `note_labels` | `note_id`, `label_id` |
-| `note_members` | `note_id`, `user_id`, `role` (`owner` / `editor`) |
+| `note_members` | `note_id`, `user_id`, `role` (`owner` / `editor`); личное место временной задачи: `urgency`, `position`, `archived_at`, `link_group` (ТР-11), `sprint_id`, `sprint_position` (ТР-12) |
+| `sprints` | `id`, `owner_id`, `title`, `description`, `due_date`, `shape` (фигура), `completed_at`; фигура уникальна среди действующих спринтов владельца |
 
 - `urgency` используется только для временных заметок (`kind = temporary`).
 - Пункты списка лежат отдельными строками, поэтому одновременные отметки двух людей не затирают друг друга.

@@ -6,6 +6,7 @@ import { ITEMS_KEY } from './useChecklist'
 import { COMPLETED_KEY } from './useCompletedItems'
 import { LABELS_KEY, NOTE_LABELS_KEY } from './useLabels'
 import { MEMBERS_KEY } from './useMembers'
+import { SPRINTS_KEY } from './useSprints'
 
 // Какие данные перезагрузить, когда в таблице что-то изменилось.
 // ['notes'] — и доска, и архив (у архива ключ начинается так же).
@@ -16,6 +17,8 @@ const KEYS_BY_TABLE: Record<string, QueryKey[]> = {
   completed_items: [COMPLETED_KEY],
   labels: [LABELS_KEY],
   note_labels: [NOTE_LABELS_KEY],
+  // ТР-12: спринты; удалённый спринт отпускает задачи — это придёт событием note_members
+  sprints: [SPRINTS_KEY],
   // Поделились заметкой или закрыли доступ — меняется всё, что видно
   note_members: [['notes'], MEMBERS_KEY, ITEMS_KEY, LABELS_KEY, NOTE_LABELS_KEY, COMPLETED_KEY],
 }
@@ -50,6 +53,7 @@ export function useRealtimeSync(userId: string) {
 
     // Сеть и канал отслеживаются отдельно: офлайн виден сразу, обрыв канала — с задержкой
     let channelOk = true
+    let disposed = false
     let offlineTimer: ReturnType<typeof setTimeout> | undefined
     const updateOnline = () => {
       clearTimeout(offlineTimer)
@@ -70,6 +74,9 @@ export function useRealtimeSync(userId: string) {
           flush()
         })
         .subscribe((status) => {
+          // Канал закрывается уже после очистки эффекта (в разработке React запускает
+          // эффект дважды): его CLOSED не должен показывать «Нет связи» поверх нового канала
+          if (disposed) return
           channelOk = status === 'SUBSCRIBED'
           updateOnline()
           if (status !== 'SUBSCRIBED') return
@@ -95,6 +102,7 @@ export function useRealtimeSync(userId: string) {
     window.addEventListener('offline', updateOnline)
 
     return () => {
+      disposed = true
       clearTimeout(flushTimer)
       clearTimeout(offlineTimer)
       unsubscribeMutations()

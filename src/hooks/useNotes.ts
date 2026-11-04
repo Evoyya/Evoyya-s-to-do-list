@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import {
   byItemPosition,
@@ -11,6 +12,7 @@ import {
   deleteNote,
   fetchArchivedNotes,
   fetchNotes,
+  fetchSprintNotes,
   insertNote,
   updateMyPlaces,
   updateNote,
@@ -20,8 +22,16 @@ import {
   type NotePatch,
   type Place,
 } from '../lib/notes'
-import { applyPlaces, labelTargets, missingLabelRows, planLink, planRestore } from '../lib/links'
+import { applyPlaces, missingLabelRows, planLink, planRestore } from '../lib/links'
 import type { Urgency } from '../lib/urgency'
+import {
+  addLabelTargets,
+  mergeNotes,
+  mergePlaces,
+  planJoin,
+  SPRINTS_KEY,
+  type Sprint,
+} from '../lib/sprints'
 import { insertNoteLabels, type NoteLabel } from '../lib/labels'
 import { useToast } from '../components/Toast'
 import { useOptimisticList } from './optimistic'
@@ -29,6 +39,8 @@ import { ITEMS_KEY } from './useChecklist'
 import { LABELS_SCOPE, NOTE_LABELS_KEY } from './useLabels'
 
 const NOTES_KEY = ['notes'] as const
+// Ключи начинаются с NOTES_KEY: любые изменения заметок обновляют и их
+const SPRINT_NOTES_KEY = [...NOTES_KEY, 'sprint'] as const
 
 export function useNotes() {
   return useQuery({ queryKey: NOTES_KEY, queryFn: fetchNotes })
@@ -46,6 +58,9 @@ export type NewNote = {
   primaryLabelId: string | null
   // ТР-11: задачи того же столбца, с которыми связать новую
   linkIds: string[]
+  // ТР-12: действующий спринт и номер в нём (null — в конец)
+  sprintId: string | null
+  sprintNumber: number | null
 }
 
 // Заметка и её пункты создаются вместе: сначала заметка, потом пункты (им нужна заметка)
@@ -90,12 +105,22 @@ export function useCreateNote() {
         [...old, ...items].sort(byItemPosition),
       )
       queryClient.setQueryData<NoteLabel[]>(NOTE_LABELS_KEY, (old = []) => [...old, ...labels])
-      return { previousNotes, previousItems, previousLabels }
+      // ТР-12: номера остальных задач спринта (в том числе архивных) сдвигаются сразу
+      const previousSprint = queryClient.getQueryData<Note[]>(SPRINT_NOTES_KEY)
+      if (note.sprint_id) {
+        queryClient.setQueryData<Note[]>(
+          SPRINT_NOTES_KEY,
+          (old) => old && applyPlaces([...old, note], places),
+        )
+      }
+      return { previousNotes, previousItems, previousLabels, previousSprint }
     },
     onError: (_error, _vars, context) => {
       if (context?.previousNotes) queryClient.setQueryData(NOTES_KEY, context.previousNotes)
       if (context?.previousItems) queryClient.setQueryData(ITEMS_KEY, context.previousItems)
       if (context?.previousLabels) queryClient.setQueryData(NOTE_LABELS_KEY, context.previousLabels)
+      if (context?.previousSprint)
+        queryClient.setQueryData(SPRINT_NOTES_KEY, context.previousSprint)
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: NOTES_KEY })
@@ -120,11 +145,13 @@ export function useCreateNote() {
       primary_label_id: input.primaryLabelId,
       archived_at: null,
       link_group: null,
+      sprint_id: null,
+      sprint_position: null,
       created_at: now,
       updated_at: now,
     }
     // ТР-11: новая задача встаёт в конец блока, задачи блока собираются рядом
-    const places =
+    const linkPlaces =
       input.kind === 'temporary' && input.linkIds.length > 0
         ? planLink(
             [...notes, note],
@@ -135,14 +162,30 @@ export function useCreateNote() {
             true,
           )
         : []
+    // ТР-12: спринт и номер — тоже в своём месте задачи; остальные задачи спринта сдвигаются
+    const sprintNotes = mergeNotes(queryClient.getQueryData<Note[]>(SPRINT_NOTES_KEY) ?? [], notes)
+    const sprintPlaces =
+      input.kind === 'temporary' && input.sprintId
+        ? planJoin([...sprintNotes, note], note.id, input.sprintId, input.sprintNumber)
+        : []
+    const places = mergePlaces(linkPlaces, sprintPlaces)
     const own = places.find((p) => p.note_id === note.id)
     if (own?.position !== undefined) note.position = own.position
+    if (own?.sprint_id) {
+      note.sprint_id = own.sprint_id
+      note.sprint_position = own.sprint_position ?? null
+    }
     const items = input.items.map((text, i) => makeItem(note.id, text, i))
     const labels = input.labelIds.map((label_id) => ({ note_id: note.id, label_id }))
     // ТР-11: ярлыки новой задачи получают и остальные свои задачи её блока
-    if (places.length > 0) {
+    // ТР-12: и остальные свои задачи её спринта на доске
+    if (places.length > 0 && input.labelIds.length > 0) {
       const linked = applyPlaces([...notes, note], places)
-      const mates = labelTargets(linked, note.id, note.owner_id).filter((id) => id !== note.id)
+      const sprints = queryClient.getQueryData<Sprint[]>(SPRINTS_KEY) ?? []
+      const active = new Set(sprints.filter((s) => !s.completed_at).map((s) => s.id))
+      const mates = addLabelTargets(linked, note.id, note.owner_id, active).filter(
+        (id) => id !== note.id,
+      )
       const rows = queryClient.getQueryData<NoteLabel[]>(NOTE_LABELS_KEY) ?? []
       labels.push(...missingLabelRows(mates, input.labelIds, rows))
     }
@@ -264,4 +307,49 @@ export function useArchive() {
   }
 
   return { archive, restore }
+}
+
+// ---------------------------------------------------------------
+// ТР-12: спринты. Номер задачи зависит от всех задач спринта, в том числе архивных,
+// поэтому задачи спринтов загружаются отдельно, а поверх кладутся свежие задачи доски.
+// ---------------------------------------------------------------
+
+export function useSprintNotes(): Note[] {
+  const { data: base = [] } = useQuery({ queryKey: SPRINT_NOTES_KEY, queryFn: fetchSprintNotes })
+  const { data: board = [] } = useNotes()
+  return useMemo(() => mergeNotes(base, board), [base, board])
+}
+
+// Спринт и номера нескольких задач сразу: на доске, в архиве и в списке спринтов
+export function useSprintPlaces() {
+  const queryClient = useQueryClient()
+  const keys = [NOTES_KEY, ARCHIVED_KEY, SPRINT_NOTES_KEY]
+  return useMutation({
+    mutationFn: updateMyPlaces,
+    onMutate: async (places: Place[]) => {
+      await queryClient.cancelQueries({ queryKey: NOTES_KEY })
+      const previous = keys.map((key) => queryClient.getQueryData<Note[]>(key))
+      for (const key of keys) {
+        queryClient.setQueryData<Note[]>(key, (old) => old && applyPlaces(old, places))
+      }
+      // Задача доски, впервые попавшая в спринт, появляется и в списке спринтов
+      const board = queryClient.getQueryData<Note[]>(NOTES_KEY) ?? []
+      queryClient.setQueryData<Note[]>(
+        SPRINT_NOTES_KEY,
+        (old) =>
+          old &&
+          mergeNotes(
+            old,
+            board.filter((n) => places.some((p) => p.note_id === n.id)),
+          ),
+      )
+      return { previous }
+    },
+    onError: (_error, _vars, context) => {
+      context?.previous.forEach((data, i) => {
+        if (data) queryClient.setQueryData(keys[i], data)
+      })
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: NOTES_KEY }),
+  })
 }
