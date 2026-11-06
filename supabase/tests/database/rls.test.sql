@@ -430,6 +430,9 @@ select throws_ok(
 -- У C своя банка с воспоминанием, у B — пустая
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000c"}', true);
 
+-- Банку создаёт отдельный запрос, как в приложении: проверка RLS внутри одного
+-- запроса не видит банку, созданную этим же запросом
+select public.ensure_my_jar();
 insert into public.memories (jar_id, body) values (public.ensure_my_jar(), 'Банка C');
 
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b"}', true);
