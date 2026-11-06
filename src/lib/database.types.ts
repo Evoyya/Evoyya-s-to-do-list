@@ -122,6 +122,116 @@ export type Database = {
           },
         ]
       }
+      memories: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          jar_id: string
+          memory_date: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          jar_id: string
+          memory_date?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          jar_id?: string
+          memory_date?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memories_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memories_jar_id_fkey"
+            columns: ["jar_id"]
+            isOneToOne: false
+            referencedRelation: "memory_jars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memory_jar_members: {
+        Row: {
+          created_at: string
+          jar_id: string
+          role: Database["public"]["Enums"]["member_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          jar_id: string
+          role?: Database["public"]["Enums"]["member_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          jar_id?: string
+          role?: Database["public"]["Enums"]["member_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_jar_members_jar_id_fkey"
+            columns: ["jar_id"]
+            isOneToOne: false
+            referencedRelation: "memory_jars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memory_jar_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memory_jars: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_jars_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       note_labels: {
         Row: {
           label_id: string
@@ -343,6 +453,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_my_jar: { Args: never; Returns: string }
+      share_jar: { Args: { p_email: string }; Returns: string }
       share_note: {
         Args: { p_email: string; p_note_id: string }
         Returns: string
