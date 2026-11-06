@@ -68,7 +68,7 @@ export function JarScene({
   const falling = useFalling(memories)
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex w-full flex-col items-center">
       <MemoryJar
         memories={visible}
         members={members}
@@ -76,7 +76,7 @@ export function JarScene({
         onLid={onLid}
         falling={falling}
         shaking={shaking}
-        className="h-auto max-h-[62dvh] w-full max-w-[340px]"
+        className="h-auto w-[min(100%,340px,calc(62dvh*0.85))] sm:w-[min(100%,600px,calc(70dvh*0.85))]"
       />
       <p className="mt-3 text-center text-sm text-jar-ink-muted">
         {memories.length === 0

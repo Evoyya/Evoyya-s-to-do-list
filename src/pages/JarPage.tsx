@@ -65,7 +65,7 @@ export function JarView({ jar }: { jar: Jar }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-4">
+    <div className="mx-auto flex max-w-md flex-col items-center gap-4 sm:max-w-2xl">
       <button
         type="button"
         onClick={() => setOpen({ kind: 'share' })}
