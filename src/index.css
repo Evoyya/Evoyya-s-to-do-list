@@ -18,6 +18,9 @@
   --color-jar-lid: #f9d3e2;
   --color-jar-pink: #f39bbb;
   --color-jar-pink-soft: #fde7ef;
+  /* Кнопки: белый текст на этом розовом читается */
+  --color-jar-rose: #d4507e;
+  --color-jar-line: #f0d5e1;
 }
 
 @layer base {

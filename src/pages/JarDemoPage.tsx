@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router'
-import { JarScene } from '../components/JarScene'
+import { JarView } from './JarPage'
 import type { JarMember, Memory } from '../lib/memoryJar'
 
 // Только в режиме разработки: банка с придуманными воспоминаниями без входа,
@@ -17,8 +17,8 @@ function demoMemories(n: number): Memory[] {
       id: `demo-${i}`,
       jar_id: 'demo',
       author_id: i % 3 === 0 ? 'b' : 'a',
-      title: null,
-      body: `Воспоминание ${i + 1}`,
+      title: i % 4 === 0 ? 'Первый снег' : null,
+      body: `Воспоминание ${i + 1}: гуляли до ночи и смеялись над всем подряд.`,
       memory_date: date,
       created_at: `${date}T12:00:00Z`,
       updated_at: `${date}T12:00:00Z`,
@@ -31,9 +31,7 @@ export function JarDemoPage() {
   const n = Number(params.get('n') ?? 24)
   return (
     <div className="jar-theme min-h-dvh px-4 pt-6">
-      <div className="mx-auto max-w-md">
-        <JarScene jarId="demo" memories={demoMemories(n)} members={members} />
-      </div>
+      <JarView jar={{ id: 'demo', members, memories: demoMemories(n) }} />
     </div>
   )
 }

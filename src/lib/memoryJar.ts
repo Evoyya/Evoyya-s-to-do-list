@@ -32,6 +32,90 @@ export async function fetchJar(): Promise<Jar> {
   return { id, members: members.data, memories: memories.data }
 }
 
+export type MemoryDraft = Pick<Memory, 'title' | 'body' | 'memory_date'>
+export type NewMemory = MemoryDraft & Pick<Memory, 'id' | 'jar_id'>
+
+// Автор ставится в базе сам (auth.uid()); id создаётся заранее для мгновенного показа
+export async function insertMemory(memory: NewMemory) {
+  const { error } = await supabase.from('memories').insert(memory)
+  if (error) throw error
+}
+
+export async function updateMemory(id: string, patch: MemoryDraft) {
+  const { error } = await supabase.from('memories').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteMemory(id: string) {
+  const { error } = await supabase.from('memories').delete().eq('id', id)
+  if (error) throw error
+}
+
+// Ошибки из share_jar написаны для человека — показываем как есть
+export async function shareJar(email: string) {
+  const { error } = await supabase.rpc('share_jar', { p_email: email })
+  if (error) throw new Error(error.message)
+}
+
+// Владелец закрывает доступ второму участнику, или участник выходит сам
+export async function removeJarMember(jarId: string, userId: string) {
+  const { error } = await supabase
+    .from('memory_jar_members')
+    .delete()
+    .eq('jar_id', jarId)
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+export const jarMemberName = (m: JarMember) =>
+  m.profile?.display_name || m.profile?.email || 'Участник'
+
+// Пустое название не хранится: в базе это null
+export function cleanDraft(draft: MemoryDraft): MemoryDraft {
+  const title = draft.title?.trim() ?? ''
+  return { title: title || null, body: draft.body.trim(), memory_date: draft.memory_date }
+}
+
+export const TITLE_MAX = 40
+export const BODY_MAX = 280
+
+// Почему воспоминание нельзя сохранить (или null, если можно)
+export function draftError(draft: MemoryDraft, today: string): string | null {
+  if (!draft.body.trim()) return 'Напишите, что случилось'
+  if (draft.body.length > BODY_MAX) return `Текст длиннее ${BODY_MAX} символов`
+  if ((draft.title?.trim().length ?? 0) > TITLE_MAX) return `Название длиннее ${TITLE_MAX} символов`
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.memory_date)) return 'Укажите дату'
+  if (draft.memory_date > today) return 'Дата не может быть в будущем'
+  return null
+}
+
+// Список под крышкой: новые сверху, по месяцам («Ноябрь 2026»)
+export function groupByMonth(memories: Memory[]) {
+  const sorted = [...memories].sort(
+    (a, b) =>
+      b.memory_date.localeCompare(a.memory_date) || b.created_at.localeCompare(a.created_at),
+  )
+  const groups: { month: string; label: string; items: Memory[] }[] = []
+  for (const m of sorted) {
+    const month = m.memory_date.slice(0, 7)
+    let group = groups.at(-1)
+    if (group?.month !== month) {
+      const label = new Date(`${month}-01T00:00:00`).toLocaleDateString('ru-RU', {
+        month: 'long',
+        year: 'numeric',
+      })
+      group = {
+        month,
+        label: label.charAt(0).toUpperCase() + label.slice(1).replace(' г.', ''),
+        items: [],
+      }
+      groups.push(group)
+    }
+    group.items.push(m)
+  }
+  return groups
+}
+
 // ------------------------------------------------------------
 // Случайность с зерном: одинаковый результат на всех устройствах
 // ------------------------------------------------------------
@@ -193,11 +277,13 @@ export const shortDate = (date: string) => `${date.slice(8, 10)}.${date.slice(5,
 
 // «2026-11-06» → «6 ноября 2026» (в окне воспоминания)
 export const longDate = (date: string) =>
-  new Date(`${date}T00:00:00`).toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  new Date(`${date}T00:00:00`)
+    .toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    .replace(' г.', '')
 
 // Два оттенка розового: у владельца банки нежный, у второго участника насыщеннее
 export const HEART_COLORS = { owner: '#f7b0c9', partner: '#ef86ac' } as const

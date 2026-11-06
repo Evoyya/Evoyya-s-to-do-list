@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cleanDraft,
+  draftError,
+  groupByMonth,
   heartColor,
   heartSize,
   JAR_INSIDE,
@@ -129,5 +132,35 @@ describe('подписи и цвета', () => {
     expect(memoriesCount(3)).toBe('3 воспоминания')
     expect(memoriesCount(11)).toBe('11 воспоминаний')
     expect(memoriesCount(25)).toBe('25 воспоминаний')
+  })
+})
+
+describe('форма и список под крышкой', () => {
+  const draft = { title: '', body: 'Гуляли до ночи', memory_date: '2026-11-06' }
+
+  it('без текста и с будущей датой сохранить нельзя', () => {
+    expect(draftError(draft, '2026-11-06')).toBeNull()
+    expect(draftError({ ...draft, body: '   ' }, '2026-11-06')).not.toBeNull()
+    expect(draftError({ ...draft, memory_date: '2026-11-07' }, '2026-11-06')).not.toBeNull()
+    expect(draftError({ ...draft, body: 'а'.repeat(281) }, '2026-11-06')).not.toBeNull()
+  })
+
+  it('пустое название не хранится, пробелы обрезаются', () => {
+    expect(cleanDraft({ ...draft, title: '  ', body: ' Снег ' })).toEqual({
+      title: null,
+      body: 'Снег',
+      memory_date: '2026-11-06',
+    })
+  })
+
+  it('список — новые сверху, по месяцам', () => {
+    const groups = groupByMonth([
+      memory(1, { memory_date: '2026-10-03' }),
+      memory(2, { memory_date: '2026-11-05' }),
+      memory(3, { memory_date: '2026-10-20' }),
+    ])
+    expect(groups.map((g) => g.month)).toEqual(['2026-11', '2026-10'])
+    expect(groups[0].label).toBe('Ноябрь 2026')
+    expect(groups[1].items.map((m) => m.id)).toEqual(['m003', 'm001'])
   })
 })
