@@ -69,15 +69,26 @@
     outline: none;
   }
 
-  .jar-heart > g {
+  .jar-heart-hover {
     transform-box: fill-box;
     transform-origin: center;
     transition: transform 150ms ease-out;
   }
 
-  .jar-heart:hover > g,
-  .jar-heart:focus-visible > g {
+  .jar-heart:hover .jar-heart-hover,
+  .jar-heart:focus-visible .jar-heart-hover {
     transform: scale(1.12);
+  }
+
+  /* Новое сердечко падает от горлышка (--fall — расстояние вверх) и отскакивает */
+  .jar-heart-fall {
+    animation: jar-heart-fall 900ms both;
+  }
+
+  /* Встряхнуть: банка покачивается вокруг дна */
+  .jar-shake {
+    transform-origin: 50% 95%;
+    animation: jar-shake 700ms ease-in-out;
   }
 
   .jar-heart:focus-visible .jar-heart-shape {
@@ -92,5 +103,50 @@
   .jar-lid:hover .jar-lid-shape,
   .jar-lid:focus-visible .jar-lid-shape {
     fill: #f6c2d6;
+  }
+}
+
+@keyframes jar-heart-fall {
+  0% {
+    transform: translateY(var(--fall));
+    animation-timing-function: cubic-bezier(0.5, 0, 1, 1);
+  }
+  65% {
+    transform: translateY(0);
+    animation-timing-function: ease-out;
+  }
+  80% {
+    transform: translateY(-10px);
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes jar-shake {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  15% {
+    transform: rotate(-7deg);
+  }
+  35% {
+    transform: rotate(6deg);
+  }
+  55% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(2deg);
+  }
+}
+
+/* ТР-13: «Уменьшение движения» — без падения и покачивания */
+@media (prefers-reduced-motion: reduce) {
+  .jar-heart-fall,
+  .jar-shake {
+    animation: none;
   }
 }

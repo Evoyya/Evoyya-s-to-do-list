@@ -1,4 +1,4 @@
-import { useMemo, type KeyboardEvent } from 'react'
+import { useMemo, type CSSProperties, type KeyboardEvent } from 'react'
 import { heartColor, layoutHearts, shortDate, type JarMember, type Memory } from '../lib/memoryJar'
 
 // ТР-13: банка воспоминаний — рисунок по мотивам референса: прозрачная банка
@@ -23,6 +23,9 @@ const SPARKLES = [
   [24, 126, 7, 124],
   [28, 148, 15, 156],
 ]
+
+// Откуда падает новое сердечко: от горлышка банки
+const FALL_FROM = 40
 
 const STRIPES = [110, 127, 144, 161, 179, 196, 213, 230]
 
@@ -79,19 +82,30 @@ export function MemoryJar({
   members,
   onOpen,
   onLid,
-  className,
+  falling,
+  shaking,
+  className = '',
 }: {
   // Уже отобранные для банки (до 30), старые первыми — они лежат внизу
   memories: Memory[]
   members: JarMember[]
   onOpen?: (memory: Memory) => void
   onLid?: () => void
+  // Только что положенные сердечки — падают сверху в банку
+  falling?: ReadonlySet<string>
+  // Банку встряхивают — она покачивается
+  shaking?: boolean
   className?: string
 }) {
   const places = useMemo(() => layoutHearts(memories.map((m) => m.id)), [memories])
 
   return (
-    <svg viewBox="0 0 340 400" className={className} role="group" aria-label="Банка воспоминаний">
+    <svg
+      viewBox="0 0 340 400"
+      className={`${className} ${shaking ? 'jar-shake' : ''}`}
+      role="group"
+      aria-label="Банка воспоминаний"
+    >
       <defs>
         <clipPath id="jar-inside">
           <path d={BODY} />
@@ -122,23 +136,31 @@ export function MemoryJar({
           const label = m.title
             ? `${shortDate(m.memory_date)}, ${m.title}`
             : shortDate(m.memory_date)
+          // Слои: место в куче → падение сверху → поворот → увеличение при наведении → размер
           return (
             <g
               key={m.id}
               className="jar-heart"
-              transform={`translate(${p.x} ${p.y}) rotate(${p.rotate})`}
+              transform={`translate(${p.x} ${p.y})`}
               role="button"
               tabIndex={onOpen ? 0 : -1}
               aria-label={`Воспоминание ${label}`}
               onClick={onOpen && (() => onOpen(m))}
               onKeyDown={onOpen && onActivate(() => onOpen(m))}
             >
-              <g>
-                <g transform={`scale(${p.size / 100}) translate(-50 -49)`}>
-                  <HeartShape
-                    color={heartColor(m.author_id, members)}
-                    label={shortDate(m.memory_date)}
-                  />
+              <g
+                className={falling?.has(m.id) ? 'jar-heart-fall' : undefined}
+                style={{ '--fall': `${FALL_FROM - p.y}px` } as CSSProperties}
+              >
+                <g transform={`rotate(${p.rotate})`}>
+                  <g className="jar-heart-hover">
+                    <g transform={`scale(${p.size / 100}) translate(-50 -49)`}>
+                      <HeartShape
+                        color={heartColor(m.author_id, members)}
+                        label={shortDate(m.memory_date)}
+                      />
+                    </g>
+                  </g>
                 </g>
               </g>
             </g>

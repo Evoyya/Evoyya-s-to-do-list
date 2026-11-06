@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Avatar } from '../components/Avatar'
 import {
   JarDialog,
@@ -10,7 +10,10 @@ import {
 import { JarScene } from '../components/JarScene'
 import { jarButton } from '../components/jarStyles'
 import { useMemoryJar } from '../hooks/useMemoryJar'
-import { jarMemberName, type Jar } from '../lib/memoryJar'
+import { jarMemberName, pickRandom, type Jar } from '../lib/memoryJar'
+
+// Длительность покачивания банки (анимация jar-shake в index.css)
+const SHAKE_MS = 700
 
 // Какое окно открыто. fromList — воспоминание открыли из списка под крышкой
 type Open =
@@ -43,6 +46,23 @@ export function JarPage() {
 // Банка с кнопками и окнами (отдельно от загрузки — её показывает и образец /jar-demo)
 export function JarView({ jar }: { jar: Jar }) {
   const [open, setOpen] = useState<Open>(null)
+  const [shaking, setShaking] = useState(false)
+  const lastShaken = useRef<string | null>(null)
+
+  // «Встряхнуть»: банка покачивается, потом открывается случайное воспоминание
+  // из всех (не только из видимых 30); то же не выпадает два раза подряд
+  const shake = () => {
+    const memory = pickRandom(jar.memories, lastShaken.current)
+    if (!memory) return
+    lastShaken.current = memory.id
+    const show = () => setOpen({ kind: 'view', id: memory.id, fromList: false })
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return show()
+    setShaking(true)
+    setTimeout(() => {
+      setShaking(false)
+      show()
+    }, SHAKE_MS)
+  }
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4">
@@ -70,11 +90,26 @@ export function JarView({ jar }: { jar: Jar }) {
         members={jar.members}
         onOpen={(m) => setOpen({ kind: 'view', id: m.id, fromList: false })}
         onLid={() => setOpen({ kind: 'list' })}
+        shaking={shaking}
       />
 
-      <button type="button" onClick={() => setOpen({ kind: 'add' })} className={jarButton.primary}>
-        Добавить воспоминание
-      </button>
+      <div className="flex flex-wrap justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen({ kind: 'add' })}
+          className={jarButton.primary}
+        >
+          Добавить воспоминание
+        </button>
+        <button
+          type="button"
+          onClick={shake}
+          disabled={jar.memories.length === 0 || shaking}
+          className={jarButton.secondary}
+        >
+          Встряхнуть
+        </button>
+      </div>
 
       {open && <JarWindow jar={jar} open={open} setOpen={setOpen} />}
     </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { JarView } from './JarPage'
 import type { JarMember, Memory } from '../lib/memoryJar'
@@ -28,10 +29,33 @@ function demoMemories(n: number): Memory[] {
 
 export function JarDemoPage() {
   const [params] = useSearchParams()
-  const n = Number(params.get('n') ?? 24)
+  const [memories, setMemories] = useState(() => demoMemories(Number(params.get('n') ?? 24)))
+
+  // Как будто второй участник только что положил воспоминание: сердечко падает
+  const drop = () => {
+    const now = new Date()
+    const date = now.toISOString().slice(0, 10)
+    setMemories((list) => [
+      ...list,
+      {
+        id: 'drop-' + now.getTime(),
+        jar_id: 'demo',
+        author_id: 'b',
+        title: 'Сегодня',
+        body: 'Тестовое сердечко из образца.',
+        memory_date: date,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      },
+    ])
+  }
+
   return (
     <div className="jar-theme min-h-dvh px-4 pt-6">
-      <JarView jar={{ id: 'demo', members, memories: demoMemories(n) }} />
+      <JarView jar={{ id: 'demo', members, memories }} />
+      <button type="button" onClick={drop} className="mx-auto mt-6 block text-xs underline">
+        Уронить тестовое сердечко
+      </button>
     </div>
   )
 }
