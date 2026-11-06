@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { ITEMS_KEY } from './useChecklist'
 import { COMPLETED_KEY } from './useCompletedItems'
 import { LABELS_KEY, NOTE_LABELS_KEY } from './useLabels'
+import { JAR_KEY } from './useMemoryJar'
 import { MEMBERS_KEY } from './useMembers'
 import { SPRINTS_KEY } from './useSprints'
 
@@ -19,6 +20,10 @@ const KEYS_BY_TABLE: Record<string, QueryKey[]> = {
   note_labels: [NOTE_LABELS_KEY],
   // ТР-12: спринты; удалённый спринт отпускает задачи — это придёт событием note_members
   sprints: [SPRINTS_KEY],
+  // ТР-13: банка воспоминаний — новое сердечко и состав пары
+  memories: [JAR_KEY],
+  memory_jar_members: [JAR_KEY],
+  memory_jars: [JAR_KEY],
   // Поделились заметкой или закрыли доступ — меняется всё, что видно
   note_members: [['notes'], MEMBERS_KEY, ITEMS_KEY, LABELS_KEY, NOTE_LABELS_KEY, COMPLETED_KEY],
 }

@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../auth/AuthProvider'
 import { useRealtimeSync } from '../hooks/useRealtimeSync'
 import { Avatar } from './Avatar'
@@ -9,6 +9,7 @@ import { UpdatePrompt } from './UpdatePrompt'
 const navItems = [
   { to: '/', label: 'Доска', end: true },
   { to: '/sprints', label: 'Спринты', end: false },
+  { to: '/jar', label: 'Банка', end: false },
   { to: '/archive', label: 'Архив', end: false },
   { to: '/labels', label: 'Ярлыки', end: false },
   { to: '/stats', label: 'Статистика', end: false },
@@ -20,6 +21,7 @@ export function Layout() {
   const name: string = meta.full_name ?? meta.name ?? session?.user.email ?? ''
   const avatarUrl: string | undefined = meta.avatar_url
   const online = useRealtimeSync(session!.user.id)
+  const { pathname } = useLocation()
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -68,7 +70,12 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      {/* ТР-13: вкладка «Банка» — в своём светлом стиле */}
+      <main
+        className={`flex-1 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] ${
+          pathname.startsWith('/jar') ? 'jar-theme' : ''
+        }`}
+      >
         {!online && (
           <div
             role="status"

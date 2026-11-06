@@ -9,6 +9,15 @@
   --color-text: #e8eaed;
   --color-text-muted: #9aa0a6;
   --color-accent: #8ab4f8;
+
+  /* ТР-13: вкладка «Банка» — отдельный светлый стиль в бело-розовых тонах */
+  --color-jar-page: #fffbfc;
+  --color-jar-ink: #5b3a4e;
+  --color-jar-ink-muted: #9b7d8e;
+  --color-jar-glass: #fff6f9;
+  --color-jar-lid: #f9d3e2;
+  --color-jar-pink: #f39bbb;
+  --color-jar-pink-soft: #fde7ef;
 }
 
 @layer base {
@@ -39,5 +48,46 @@
       radial-gradient(ellipse 30% 38% at 22% 2%, rgb(170 120 200 / 0.38), transparent 70%),
       radial-gradient(ellipse 45% 55% at 38% -4%, rgb(120 70 210 / 0.55), transparent 70%),
       radial-gradient(ellipse 75% 70% at 45% -12%, rgb(80 45 160 / 0.35), transparent 75%);
+  }
+}
+
+/* ТР-13: сердечки в банке. Наведение и фокус — на внутренней группе,
+   потому что у внешней поворот и сдвиг заданы атрибутом transform */
+@layer components {
+  /* Светлая вкладка «Банка» поверх тёмного приложения */
+  .jar-theme {
+    background-color: var(--color-jar-page);
+    color: var(--color-jar-ink);
+    color-scheme: light;
+  }
+
+  .jar-heart {
+    cursor: pointer;
+    outline: none;
+  }
+
+  .jar-heart > g {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 150ms ease-out;
+  }
+
+  .jar-heart:hover > g,
+  .jar-heart:focus-visible > g {
+    transform: scale(1.12);
+  }
+
+  .jar-heart:focus-visible .jar-heart-shape {
+    stroke: #d6336c;
+  }
+
+  .jar-lid {
+    cursor: pointer;
+    outline: none;
+  }
+
+  .jar-lid:hover .jar-lid-shape,
+  .jar-lid:focus-visible .jar-lid-shape {
+    fill: #f6c2d6;
   }
 }

@@ -29,6 +29,10 @@ const router = createBrowserRouter([
             lazy: async () => ({ Component: (await import('./pages/SprintsPage')).SprintsPage }),
           },
           {
+            path: 'jar',
+            lazy: async () => ({ Component: (await import('./pages/JarPage')).JarPage }),
+          },
+          {
             path: 'archive',
             lazy: async () => ({ Component: (await import('./pages/ArchivePage')).ArchivePage }),
           },
@@ -44,6 +48,15 @@ const router = createBrowserRouter([
       },
     ],
   },
+  // Образец банки без входа — только при разработке, в сборку не попадает
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/jar-demo',
+          lazy: async () => ({ Component: (await import('./pages/JarDemoPage')).JarDemoPage }),
+        },
+      ]
+    : []),
   { path: '*', element: <Navigate to="/" replace /> },
 ])
 
