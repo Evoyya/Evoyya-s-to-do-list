@@ -1,11 +1,11 @@
--- Тесты схемы и правил доступа (ТР-1…ТР-6, ТР-8, ТР-9, ТР-11, ТР-12).
+-- Тесты схемы и правил доступа (ТР-1…ТР-6, ТР-8, ТР-9, ТР-11…ТР-13).
 -- Запуск: supabase test db
 
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(44);
+select plan(62);
 
 -- ------------------------------------------------------------
 -- Тестовые данные: пользователь A (создатель) и B (девушка)
@@ -13,7 +13,8 @@ select plan(44);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000000a', 'A@test.local', '{"full_name": "User A"}'),
-  ('00000000-0000-0000-0000-00000000000b', 'b@test.local', '{"full_name": "User B"}');
+  ('00000000-0000-0000-0000-00000000000b', 'b@test.local', '{"full_name": "User B"}'),
+  ('00000000-0000-0000-0000-00000000000c', 'c@test.local', '{"full_name": "User C"}');
 
 select is(
   (select count(*)::int from public.profiles where email in ('a@test.local', 'b@test.local')),
@@ -388,6 +389,134 @@ select is(
 select is(
   (select count(*)::int from public.completed_items),
   0, 'Вышедший из общей заметки не видит её журнал выполненных пунктов'
+);
+
+-- ------------------------------------------------------------
+-- ТР-13: банка воспоминаний (A — владелец, B — девушка, C — посторонний)
+-- ------------------------------------------------------------
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000a"}', true);
+
+select is(
+  public.ensure_my_jar(), public.ensure_my_jar(),
+  'ТР-13: банка создаётся при первом заходе, повторный вызов возвращает ту же'
+);
+
+insert into public.memories (id, jar_id, title, body, memory_date) values
+  ('80000000-0000-0000-0000-000000000001', public.ensure_my_jar(), 'Кафе',
+   'Первое свидание в кафе у реки.', '2025-06-14');
+
+select is(
+  (select author_id::text from public.memories where id = '80000000-0000-0000-0000-000000000001'),
+  '00000000-0000-0000-0000-00000000000a', 'ТР-13: автор воспоминания ставится сам'
+);
+
+select throws_ok(
+  $$ insert into public.memories (jar_id, body) values (public.ensure_my_jar(), repeat('а', 281)) $$,
+  '23514', null, 'ТР-13: текст воспоминания не длиннее 280 символов'
+);
+
+select throws_ok(
+  $$ insert into public.memories (jar_id, body) values (public.ensure_my_jar(), '   ') $$,
+  '23514', null, 'ТР-13: воспоминание без текста сохранить нельзя'
+);
+
+select throws_ok(
+  $$ insert into public.memories (jar_id, body, memory_date)
+     values (public.ensure_my_jar(), 'Будущее', current_date + 5) $$,
+  '23514', null, 'ТР-13: будущую дату поставить нельзя'
+);
+
+-- У C своя банка с воспоминанием, у B — пустая
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000c"}', true);
+
+insert into public.memories (jar_id, body) values (public.ensure_my_jar(), 'Банка C');
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b"}', true);
+
+select lives_ok($$ select public.ensure_my_jar() $$, 'ТР-13: у B своя пустая банка');
+
+select throws_ok(
+  $$ select public.share_jar('b@test.local') $$,
+  'P0001', null, 'ТР-13: нельзя пригласить в банку самого себя'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000a"}', true);
+
+select throws_ok(
+  $$ select public.share_jar('c@test.local') $$,
+  'P0001', null, 'ТР-13: банки с воспоминаниями не сливаются'
+);
+
+select lives_ok(
+  $$ select public.share_jar(' B@test.local ') $$,
+  'ТР-13: A приглашает B по email'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b"}', true);
+
+select is(
+  public.ensure_my_jar(),
+  (select jar_id from public.memory_jar_members where user_id = '00000000-0000-0000-0000-00000000000a'),
+  'ТР-13: B теперь в банке A, пустая банка B удалена'
+);
+
+select results_eq(
+  $$ select body from public.memories $$,
+  $$ values ('Первое свидание в кафе у реки.'::text) $$,
+  'ТР-13: B видит воспоминания общей банки и не видит чужих банок'
+);
+
+select is(
+  (select count(*)::int from public.profiles where id = '00000000-0000-0000-0000-00000000000a'),
+  1, 'ТР-13: B видит профиль автора из общей банки'
+);
+
+insert into public.memories (id, jar_id, body) values
+  ('80000000-0000-0000-0000-000000000002', public.ensure_my_jar(), 'Мой первый листочек в банке.');
+
+update public.memories set body = 'Правка B' where id = '80000000-0000-0000-0000-000000000001';
+delete from public.memories where id = '80000000-0000-0000-0000-000000000001';
+
+select is(
+  (select body from public.memories where id = '80000000-0000-0000-0000-000000000001'),
+  'Первое свидание в кафе у реки.', 'ТР-13: B не может изменить или удалить воспоминание A'
+);
+
+select throws_ok(
+  $$ insert into public.memories (jar_id, author_id, body)
+     values (public.ensure_my_jar(), '00000000-0000-0000-0000-00000000000a', 'От имени A') $$,
+  '42501', null, 'ТР-13: нельзя добавить воспоминание от чужого имени'
+);
+
+select throws_ok(
+  $$ update public.memories set author_id = '00000000-0000-0000-0000-00000000000b'
+     where id = '80000000-0000-0000-0000-000000000002' $$,
+  '42501', null, 'ТР-13: автора воспоминания сменить нельзя'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000c"}', true);
+
+select is(
+  (select count(*)::int from public.memories),
+  1, 'ТР-13: посторонний видит только свою банку'
+);
+
+-- B выходит из банки: её воспоминание остаётся у A
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b"}', true);
+
+delete from public.memory_jar_members where user_id = '00000000-0000-0000-0000-00000000000b';
+
+select is(
+  (select count(*)::int from public.memories),
+  0, 'ТР-13: вышедший из банки не видит её воспоминаний'
+);
+
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000a"}', true);
+
+select is(
+  (select count(*)::int from public.memories),
+  2, 'ТР-13: воспоминания вышедшего остаются в банке'
 );
 
 -- ------------------------------------------------------------

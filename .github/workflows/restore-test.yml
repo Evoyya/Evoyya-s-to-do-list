@@ -90,5 +90,6 @@ jobs:
               (select count(*) from public.checklist_items) as items,
               (select count(*) from public.labels)          as labels,
               (select count(*) from public.note_members)    as members,
+              (select count(*) from public.memories)        as memories,
               (select count(*) from pg_trigger
                 where tgname = 'on_auth_user_created')      as signup_trigger"
